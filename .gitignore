@@ -1,0 +1,65 @@
+# Environment variables (NEVER commit secrets!)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Lock files
+*.lock
+.git/index.lock
+
+# Build outputs
+meditrack-client/build/
+dist/
+.next/
+
+# Cache files
+.cache/
+.parcel-cache/
+.eslintcache
+
+# IDE & Editor
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+test-results/
+playwright-report/
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+~*
+
+# Android/Unwanted files
+.android/
+*.apk
+
+# Node REPL history
+.node_repl_history

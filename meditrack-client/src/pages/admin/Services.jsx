@@ -1,0 +1,138 @@
+// src/pages/admin/Services.jsx
+import React, { useEffect, useState } from "react";
+import {
+  Box, Paper, TextField, Button, Typography,
+  Table, TableHead, TableRow, TableCell, TableBody, Switch, Stack
+} from "@mui/material";
+import api from "../../api/client";
+
+export default function Services() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState({ name: "", code: "", price: "", description: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    try {
+      const { data } = await api.get("/admin/services");
+      setRows(data.services);
+    } catch (err) {
+      setRows([]);
+      setError(err.response?.data?.message || "Failed to load services");
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    try {
+      if (editingId) {
+        await api.put(`/admin/services/${editingId}`, form);
+      } else {
+        await api.post("/admin/services", form);
+      }
+      setForm({ name: "", code: "", price: "", description: "" });
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || "Error saving service");
+    }
+  };
+
+  const edit = (srv) => {
+    setForm({ name: srv.name, code: srv.code || "", price: srv.price || "", description: srv.description || "" });
+    setEditingId(srv._id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({ name: "", code: "", price: "", description: "" });
+    setError("");
+  };
+
+  const toggleActive = async (id) => {
+    await api.delete(`/admin/services/${id}/toggle`);
+    await load();
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Hospital Services</Typography>
+
+      <Paper sx={{ p: 2, mb: 3, maxWidth: 600 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          {editingId ? "Edit Service" : "Add Service"}
+        </Typography>
+
+        {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
+
+        <form onSubmit={submit}>
+          <Stack spacing={2}>
+            <TextField
+              label="Name *" value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <TextField
+              label="Code" value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              placeholder="e.g., PSY-01"
+            />
+            <TextField
+              label="Price (₹)" type="number" value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              required
+            />
+            <TextField
+              label="Description" value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              multiline rows={3}
+            />
+            <Stack direction="row" spacing={1}>
+              <Button type="submit" variant="contained">
+                {editingId ? "Update" : "Create"}
+              </Button>
+              {editingId && <Button onClick={cancelEdit}>Cancel</Button>}
+            </Stack>
+          </Stack>
+        </form>
+      </Paper>
+
+      <Paper sx={{ p: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Code</TableCell>
+              <TableCell>Price</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell align="center">Active</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r._id} hover>
+                <TableCell>{r.name}</TableCell>
+                <TableCell>{r.code}</TableCell>
+                <TableCell>₹{r.price}</TableCell>
+                <TableCell sx={{ maxWidth: 300 }}>{r.description}</TableCell>
+                <TableCell align="center">
+                  <Switch checked={!!r.active} onChange={() => toggleActive(r._id)} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button size="small" onClick={() => edit(r)}>Edit</Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && (
+              <TableRow><TableCell colSpan={6}>No services yet.</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Paper>
+    </Box>
+  );
+}
