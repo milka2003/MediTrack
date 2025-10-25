@@ -3,10 +3,10 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
+import PatientLoginPage from "./pages/PatientLoginPage";
 import Dashboard from "./pages/admin/Dashboard";  // Admin Dashboard Layout
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReceptionDashboard from "./pages/ReceptionDashboard";
-import PharmacistDashboard from "./pages/PharmacistDashboard";
 import PharmacyDashboard from "./pages/pharmacy/Dashboard";
 import MedicineMaster from "./pages/pharmacy/MedicineMaster";
 import Prescriptions from "./pages/pharmacy/Prescriptions";
@@ -23,8 +23,14 @@ import ChangePassword from "./pages/ChangePassword";
 import Departments from "./pages/admin/Departments";
 import Services from "./pages/admin/Services";
 import Doctors from "./pages/admin/Doctors";
-import CreateVisit from "./pages/reception/CreateVisit";
 
+// Patient Portal
+import PatientDashboard from "./pages/patient/Dashboard";
+import PatientProfile from "./pages/patient/Profile";
+import PatientVisits from "./pages/patient/Visits";
+import PatientLabReports from "./pages/patient/LabReports";
+import PatientPrescriptions from "./pages/patient/Prescriptions";
+import PatientBills from "./pages/patient/Bills";
 
 // ✅ Now AddStaff is imported
 import AddStaff from "./pages/admin/AddStaff"; 
@@ -41,6 +47,7 @@ function App() {
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/patient-login" element={<PatientLoginPage />} />
         <Route path="/change-password" element={<ChangePassword />} />
 
         {/* Admin Dashboard with nested routes */}
@@ -53,6 +60,19 @@ function App() {
           <Route path="reports" element={<AdminReports />} />
           {/* Default index → Overview */}
           <Route index element={<AdminOverview />} />
+        </Route>
+
+        {/* Patient Portal - Protected with patient authentication */}
+        <Route path="/patient-portal" element={
+          <ProtectedRoute roles={["Patient"]}>
+            <PatientDashboard />
+          </ProtectedRoute>
+        }>
+          <Route path="visits" element={<PatientVisits />} />
+          <Route path="lab-reports" element={<PatientLabReports />} />
+          <Route path="prescriptions" element={<PatientPrescriptions />} />
+          <Route path="bills" element={<PatientBills />} />
+          <Route index element={<PatientProfile />} />
         </Route>
 
         {/* Other Roles */}

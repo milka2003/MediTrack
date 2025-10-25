@@ -1,37 +1,92 @@
-# MediTrack Repository Overview
+---
+description: Repository Information Overview
+alwaysApply: true
+---
 
-## Backend
-- **Location**: `server/`
-- **Stack**: Node.js with Express, Mongoose/MongoDB
-- **Entry Point**: `server/server.js`
-- **Key Folders**:
-  - `server/routes/`: REST API route handlers (auth, admin, billing, etc.)
-  - `server/models/`: Mongoose schemas (Patient, Visit, Bill, Doctor, LabTest, Medicine, etc.)
-  - `server/middleware/`: Express middleware (authentication, authorization)
-  - `server/utils/`: Utility helpers (JWT, messaging, counters)
-  - `server/uploads/`: Static file storage served at `/uploads`
-- **Configuration**: `.env` file in `server/` with `MONGO_URI`, `PORT`, and `CORS_ORIGIN`
+# MediTrack Information
 
-## Frontend
-- **Location**: `meditrack-client/`
-- **Stack**: React, Material UI, React Router
-- **Entry Point**: `meditrack-client/src/index.js`
-- **Key Folders**:
-  - `src/pages/`: Page-level components (Admin, Billing, Reception, etc.)
-  - `src/components/`: Reusable UI components
-  - `src/api/`: Axios client and service helpers
-  - `public/`: Static assets and HTML template
-- **Build Output**: `meditrack-client/build/`
-- **Testing**: Playwright E2E specs in `meditrack-client/tests`
+## Summary
+MediTrack is a comprehensive Hospital Management System designed to streamline medical facility operations. The application follows a client-server architecture with a React frontend and Node.js/Express backend connected to MongoDB.
 
-## Conventions
-- **Styling**: Primarily Material UI components with responsive hooks
-- **API Base URL**: Set via Axios client, typically `/api`
-- **Authentication**: JWT stored in `localStorage` (`token`, `user`)
-- **Imports**: Use absolute paths relative to `server/` and `meditrack-client/src/`
+## Structure
+- **server/**: Backend Express.js API with MongoDB integration
+- **meditrack-client/**: React-based frontend application
+- **Root directory**: Contains project-wide configuration and scripts
 
-## Development Tips
-1. Start backend from `server/` (e.g., `npm start`) and frontend from `meditrack-client/`.
-2. Ensure MongoDB is accessible via `MONGO_URI`.
-3. Use consistent error handling: send JSON with `message` and status codes.
-4. Reuse existing API helpers in `src/api/client.js` for new frontend requests.
+## Language & Runtime
+**Language**: JavaScript/Node.js (Backend), JavaScript/React (Frontend)
+**Version**: Node.js >=16.0.0, npm >=8.0.0
+**Build System**: npm scripts
+**Package Manager**: npm
+
+## Dependencies
+**Backend Dependencies**:
+- express (^5.1.0): Web framework
+- mongoose (^8.17.1): MongoDB ODM
+- bcrypt (^6.0.0): Password hashing
+- jsonwebtoken (^9.0.2): Authentication
+- multer (^2.0.2): File uploads
+- pdfkit (^0.17.2): PDF generation
+- puppeteer (^24.22.2): Browser automation
+- twilio (^5.9.0): SMS messaging
+
+**Frontend Dependencies**:
+- react (^19.1.1): UI library
+- react-router-dom (^7.8.1): Routing
+- @mui/material (^7.3.1): Material UI components
+- axios (^1.11.0): HTTP client
+- recharts (^3.3.0): Charting library
+- jspdf (^3.0.3): PDF generation
+
+## Build & Installation
+```bash
+# Install all dependencies (root, client, server)
+npm run install-all
+
+# Start backend server
+npm run start
+
+# Start frontend development server
+npm run client
+
+# Build frontend for production
+npm run build
+```
+
+## Testing
+**Framework**: Playwright for E2E testing
+**Test Location**: meditrack-client/e2e
+**Configuration**: playwright.config.ts
+**Run Command**:
+```bash
+cd meditrack-client
+npx playwright test
+```
+
+## Project Components
+
+### Backend API
+**Entry Point**: server/server.js
+**Routes**:
+- /api/auth: Authentication
+- /api/admin: Admin operations
+- /api/reception: Patient reception
+- /api/visits: Patient visits
+- /api/doctor: Doctor operations
+- /api/lab: Laboratory management
+- /api/pharmacy: Pharmacy operations
+- /api/billing: Billing and payments
+- /api/reports: Reporting
+
+### Frontend Application
+**Entry Point**: meditrack-client/src/index.js
+**Key Modules**:
+- Admin Dashboard: Staff, departments, services management
+- Doctor Dashboard: Patient consultations, prescriptions
+- Reception: Patient registration, visit management
+- Lab: Test management and reporting
+- Pharmacy: Medicine dispensing, inventory
+- Billing: Payment processing
+
+**Authentication**: JWT-based with localStorage storage
+**API Communication**: Axios client configured in src/api/client.js

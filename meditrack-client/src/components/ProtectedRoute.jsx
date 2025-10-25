@@ -14,13 +14,23 @@ function ProtectedRoute({ children, roles }) {
     }
   })();
 
+  // Check if token exists
   if (!token) {
+    // Redirect to appropriate login page based on required role
+    if (roles?.includes("Patient")) {
+      return <Navigate to="/patient-login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
+  // Check if user has required role
   if (roles?.length) {
     const userRole = user?.role || user?.type;
     if (!userRole || !roles.includes(userRole)) {
+      // Redirect to appropriate login page based on required role
+      if (roles?.includes("Patient")) {
+        return <Navigate to="/patient-login" replace />;
+      }
       return <Navigate to="/login" replace />;
     }
   }

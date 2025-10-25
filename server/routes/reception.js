@@ -1,8 +1,10 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const Patient = require('../models/Patient');
 const { authAny, requireStaff } = require('../middleware/auth');
 const { sendWhatsAppMessage } = require('../utils/messaging');
 const { nextSeq } = require('../utils/counters');
+const { generateTempPassword } = require('../utils/generatePassword');
 
 const router = express.Router();
 
@@ -83,6 +85,12 @@ router.post('/add-patient', authAny, requireStaff(['Reception','Admin']), async 
     const seq = await nextSeq(`op_${year}`);
     createPayload.opNumber = `${year}-${seq}`;
 
+    // Generate temporary password and hash it
+    const tempPassword = generateTempPassword(10);
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    createPayload.passwordHash = passwordHash;
+    createPayload.portalAccess = true;
+
     // Save patient
     const patient = await Patient.create(createPayload);
 
@@ -105,7 +113,8 @@ router.post('/add-patient', authAny, requireStaff(['Reception','Admin']), async 
         id: patient._id,
         name: patient.firstName,
         phone: patient.phone,
-        opNumber: patient.opNumber
+        opNumber: patient.opNumber,
+        portalPassword: tempPassword
       }
     });
   } catch (err) {
@@ -130,6 +139,66 @@ router.get("/search", authAny, requireStaff(["Reception", "Admin"]), async (req,
     res.json({ patient });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// GET /api/reception/patients-without-access
+// Fetch all existing patients without portal access (for admin to enable)
+router.get('/patients-without-access', authAny, requireStaff(['Reception','Admin']), async (req, res) => {
+  try {
+    const patientsWithoutAccess = await Patient.find({
+      $or: [
+        { passwordHash: { $exists: false } },
+        { passwordHash: null },
+        { passwordHash: '' },
+        { portalAccess: false }
+      ]
+    }).select('_id firstName lastName phone opNumber createdAt');
+
+    res.json({ 
+      count: patientsWithoutAccess.length,
+      patients: patientsWithoutAccess 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch patients', error: err.message });
+  }
+});
+
+// POST /api/reception/enable-patient-access
+// Enable portal access for an existing patient (generates new password)
+router.post('/enable-patient-access', authAny, requireStaff(['Reception','Admin']), async (req, res) => {
+  try {
+    const { patientId } = req.body;
+    if (!patientId) {
+      return res.status(400).json({ message: 'Patient ID required' });
+    }
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    // Generate temporary password
+    const tempPassword = generateTempPassword(10);
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    patient.passwordHash = passwordHash;
+    patient.portalAccess = true;
+    await patient.save();
+
+    res.json({
+      message: 'Portal access enabled',
+      patient: {
+        id: patient._id,
+        name: patient.firstName + ' ' + patient.lastName,
+        opNumber: patient.opNumber,
+        phone: patient.phone,
+        portalPassword: tempPassword // Show only once
+      }
+    });
+  } catch (err) {
+    console.error('Enable access error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

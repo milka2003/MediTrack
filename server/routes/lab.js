@@ -311,31 +311,135 @@ function generateLabReportHTML(consultation, labRequest, itemIndex) {
       <meta charset="UTF-8">
       <title>Lab Report</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-        .logo { font-size: 24px; font-weight: bold; color: #0d47a1; }
-        .hospital-info { font-size: 14px; color: #666; margin-top: 5px; }
-        .patient-info { margin-bottom: 20px; }
-        .info-row { display: flex; margin-bottom: 5px; }
-        .info-label { font-weight: bold; width: 120px; }
-        .info-value { flex: 1; }
-        .test-header { background-color: #f5f5f5; padding: 10px; margin: 20px 0 10px 0; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #e3f2fd; padding: 10px; text-align: left; border: 1px solid #ddd; }
-        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-        .abnormal { color: red; font-weight: bold; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: Arial, sans-serif; 
+          margin: 0; 
+          padding: 20px; 
+          color: #000;
+          line-height: 1.4;
+        }
+        
+        /* Header */
+        .header { 
+          text-align: center; 
+          border-bottom: 2px solid #000;
+          padding-bottom: 15px; 
+          margin-bottom: 20px;
+        }
+        .logo { 
+          font-size: 20px; 
+          font-weight: bold; 
+          color: #0066cc;
+          margin-bottom: 5px;
+        }
+        .subtitle {
+          font-size: 12px;
+          color: #000;
+          margin-bottom: 3px;
+        }
+        .hospital-info { 
+          font-size: 11px; 
+          color: #000;
+        }
+        
+        .report-title {
+          text-align: center;
+          font-size: 16px;
+          font-weight: bold;
+          color: #0066cc;
+          margin: 20px 0 15px 0;
+        }
+        
+        /* Patient Info */
+        .patient-info-section {
+          margin-bottom: 15px;
+        }
+        .info-row { 
+          display: flex;
+          margin-bottom: 5px;
+          font-size: 12px;
+        }
+        .info-label { 
+          font-weight: bold; 
+          width: 140px;
+          margin-right: 10px;
+        }
+        .info-value { 
+          flex: 1;
+        }
+        
+        /* Section Header */
+        .section-header {
+          font-weight: bold;
+          font-size: 12px;
+          margin-top: 15px;
+          margin-bottom: 10px;
+          background-color: #f0f0f0;
+          padding: 5px 8px;
+        }
+        
+        /* Table */
+        table { 
+          width: 100%; 
+          border-collapse: collapse;
+          margin-top: 5px;
+          font-size: 11px;
+        }
+        th { 
+          background-color: #b3d9ff;
+          color: #000;
+          padding: 8px;
+          text-align: left;
+          font-weight: bold;
+          border: 1px solid #999;
+        }
+        td {
+          padding: 8px;
+          border: 1px solid #999;
+        }
+        tbody tr:nth-child(odd) {
+          background-color: #ffffff;
+        }
+        tbody tr:nth-child(even) {
+          background-color: #e6f2ff;
+        }
+        
+        /* Remarks */
+        .remarks {
+          margin-top: 15px;
+          font-size: 12px;
+        }
+        .remarks strong {
+          display: block;
+          margin-bottom: 5px;
+        }
+        .remarks-text {
+          margin-left: 0;
+        }
+        
+        /* Footer */
+        .footer { 
+          margin-top: 30px; 
+          text-align: center; 
+          font-size: 10px; 
+          color: #666;
+          line-height: 1.4;
+          border-top: 1px solid #ccc;
+          padding-top: 10px;
+        }
       </style>
     </head>
     <body>
       <div class="header">
         <div class="logo">Holy Cross Hospital</div>
-        <div class="hospital-info">Comprehensive Healthcare Solutions</div>
+        <div class="subtitle">Comprehensive Healthcare Solutions</div>
         <div class="hospital-info">Phone: 7356988696 | Email: holycrosskvply@gmail.com</div>
       </div>
 
-      <h2 style="text-align: center; color: #0d47a1;">Laboratory Report</h2>
+      <div class="report-title">Laboratory Report</div>
 
-      <div class="patient-info">
+      <div class="patient-info-section">
         <div class="info-row">
           <span class="info-label">Patient Name:</span>
           <span class="info-value">${patient?.firstName || ''} ${patient?.lastName || ''}</span>
@@ -346,7 +450,7 @@ function generateLabReportHTML(consultation, labRequest, itemIndex) {
         </div>
         <div class="info-row">
           <span class="info-label">Age/Gender:</span>
-          <span class="info-value">${patient?.age || ''} / ${patient?.gender || ''}</span>
+          <span class="info-value">${patient?.age || '-'} / ${patient?.gender || '-'}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Doctor:</span>
@@ -358,7 +462,7 @@ function generateLabReportHTML(consultation, labRequest, itemIndex) {
         </div>
         <div class="info-row">
           <span class="info-label">Report Date:</span>
-          <span class="info-value">${new Date().toLocaleDateString()}</span>
+          <span class="info-value">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Sample Collected:</span>
@@ -366,10 +470,8 @@ function generateLabReportHTML(consultation, labRequest, itemIndex) {
         </div>
       </div>
 
-      <div class="test-header">
-        <strong>Test Results</strong>
-      </div>
-
+      <div class="section-header">Test Results</div>
+      
       <table>
         <thead>
           <tr>
@@ -382,27 +484,39 @@ function generateLabReportHTML(consultation, labRequest, itemIndex) {
           </tr>
         </thead>
         <tbody>
-          ${resultsHTML}
+          ${labRequest.parameterResults && labRequest.parameterResults.length > 0 
+            ? labRequest.parameterResults.map(result => `
+              <tr>
+                <td>${result.parameterName || '-'}</td>
+                <td>${result.value || '-'}</td>
+                <td>${result.unit || '-'}</td>
+                <td>${result.referenceRange || '-'}</td>
+                <td>${result.isAbnormal ? 'Abnormal' : 'Normal'}</td>
+                <td>${result.remarks || '-'}</td>
+              </tr>
+            `).join('')
+            : '<tr><td colspan="6" style="text-align: center;">No results available</td></tr>'
+          }
         </tbody>
       </table>
 
       ${labRequest.overallRemarks ? `
-        <div style="margin-top: 20px;">
-          <strong>Overall Remarks:</strong><br>
-          ${labRequest.overallRemarks}
+        <div class="remarks">
+          <strong>Overall Remarks:</strong>
+          <div class="remarks-text">${labRequest.overallRemarks}</div>
         </div>
       ` : ''}
 
       ${labRequest.summaryResult ? `
-        <div style="margin-top: 10px;">
-          <strong>Summary:</strong><br>
-          ${labRequest.summaryResult}
+        <div class="remarks">
+          <strong>Summary:</strong>
+          <div class="remarks-text">${labRequest.summaryResult}</div>
         </div>
       ` : ''}
 
       <div class="footer">
         <p>This report is confidential and intended for the patient and authorized healthcare providers only.</p>
-        <p>Report generated on ${new Date().toLocaleString()}</p>
+        <p>Report generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })} ${new Date().toLocaleTimeString()}</p>
       </div>
     </body>
     </html>

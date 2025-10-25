@@ -17,10 +17,17 @@ import {
   Grid,
   Stack,
   Divider,
-  Avatar
+  Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
+  ContentCopyIcon
 } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import FileCopyIcon from '@mui/icons-material/FileCopy';
 import axios from "axios";
 import CreateVisit from "./reception/CreateVisit";
 import VisitList from "./reception/VisitList";
@@ -30,6 +37,14 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // =================== PATIENT REGISTRATION FORM ===================
 function AddPatientForm() {
@@ -46,9 +61,22 @@ function AddPatientForm() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [snack, setSnack] = useState({ open: false, severity: "info", text: "" });
+  const [openDialog, setOpenDialog] = useState(false);
+  const [registrationData, setRegistrationData] = useState({ opNumber: "", password: "", patientName: "" });
 
   const openSnack = (severity, text) => setSnack({ open: true, severity, text });
   const closeSnack = () => setSnack({ ...snack, open: false });
+  
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(registrationData.password);
+    openSnack("success", "Password copied to clipboard!");
+  };
+  
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    // Clear form after closing dialog
+    setForm({ firstName:'', lastName:'', phone:'', email:'', dob:'', gender:'', address:'' });
+  };
 
   // Load stats
   React.useEffect(() => {
@@ -88,6 +116,14 @@ function AddPatientForm() {
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      // Store registration data and open dialog
+      setRegistrationData({
+        opNumber: res.data.patient.opNumber,
+        password: res.data.patient.portalPassword,
+        patientName: res.data.patient.name
+      });
+      setOpenDialog(true);
       setMessage(`✅ Patient registered! OP Number: ${res.data.patient.opNumber}`);
       openSnack("success", `Patient registered! OP: ${res.data.patient.opNumber}`);
     } catch (err) {
@@ -160,6 +196,289 @@ function AddPatientForm() {
         {message && <Typography sx={{ mt: 2 }}>{message}</Typography>}
       </Paper>
 
+      {/* Password Dialog */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ bgcolor: '#0277BD', color: '#fff', fontWeight: 700 }}>
+          ✅ Patient Registered Successfully
+        </DialogTitle>
+        <DialogContent sx={{ mt: 3 }}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+            Patient: <strong>{registrationData.patientName}</strong>
+          </Typography>
+          
+          <Paper sx={{ p: 2, bgcolor: '#e3f2fd', mb: 2, border: '2px solid #0277BD' }}>
+            <Typography variant="caption" color="text.secondary">OP Number</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#0277BD', fontFamily: 'monospace' }}>
+                {registrationData.opNumber}
+              </Typography>
+              <Button 
+                size="small" 
+                variant="outlined"
+                onClick={() => {
+                  navigator.clipboard.writeText(registrationData.opNumber);
+                  openSnack("success", "OP Number copied!");
+                }}
+                startIcon={<FileCopyIcon />}
+              >
+                Copy
+              </Button>
+            </Stack>
+          </Paper>
+
+          <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '2px solid #FF9800' }}>
+            <Typography variant="caption" color="text.secondary">Portal Password (Share with Patient)</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#FF9800', fontFamily: 'monospace', letterSpacing: 1 }}>
+                {registrationData.password}
+              </Typography>
+              <Button 
+                size="small" 
+                variant="contained"
+                color="warning"
+                onClick={handleCopyPassword}
+                startIcon={<FileCopyIcon />}
+              >
+                Copy
+              </Button>
+            </Stack>
+            <Typography variant="caption" sx={{ mt: 2, display: 'block', color: '#d84315', fontWeight: 500 }}>
+              ⚠️ Share this password with the patient. They will use OP Number + Password to login.
+            </Typography>
+          </Paper>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDialog} variant="contained" sx={{ bgcolor: '#0277BD' }}>
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={closeSnack}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={closeSnack} severity={snack.severity} sx={{ width: '100%' }}>
+          {snack.text}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+// =================== MANAGE PATIENT PORTAL ACCESS ===================
+function ManagePatientAccess() {
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [enableLoading, setEnableLoading] = useState(null);
+  const [snack, setSnack] = useState({ open: false, severity: "info", text: "" });
+  const [passwordDialog, setPasswordDialog] = useState({ open: false, data: null });
+
+  const openSnack = (severity, text) => setSnack({ open: true, severity, text });
+  const closeSnack = () => setSnack({ ...snack, open: false });
+
+  // Fetch patients without portal access
+  React.useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        "http://localhost:5000/api/reception/patients-without-access",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPatients(res.data.patients || []);
+    } catch (err) {
+      openSnack("error", "Failed to fetch patients");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnableAccess = async (patientId) => {
+    try {
+      setEnableLoading(patientId);
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        "http://localhost:5000/api/reception/enable-patient-access",
+        { patientId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Show password dialog
+      setPasswordDialog({ open: true, data: res.data.patient });
+      openSnack("success", "Portal access enabled!");
+
+      // Remove from list
+      setPatients(patients.filter(p => p._id !== patientId));
+    } catch (err) {
+      openSnack("error", err.response?.data?.message || "Failed to enable access");
+      console.error(err);
+    } finally {
+      setEnableLoading(null);
+    }
+  };
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Paper elevation={4} sx={{ p: 3, borderRadius: 3, bgcolor: '#ffffff' }}>
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+          <VpnKeyIcon sx={{ fontSize: 32, color: '#0277BD' }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#01579B' }}>
+              Enable Patient Portal Access
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {patients.length} patient{patients.length !== 1 ? 's' : ''} waiting for portal access
+            </Typography>
+          </Box>
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : patients.length === 0 ? (
+          <Alert severity="success">✅ All patients have portal access enabled!</Alert>
+        ) : (
+          <TableContainer sx={{ border: '1px solid #e0e0e0', borderRadius: 2 }}>
+            <Table>
+              <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Patient Name</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>OP Number</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Registered</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="right">Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {patients.map((patient) => (
+                  <TableRow key={patient._id} hover>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 500 }}>
+                        {patient.firstName} {patient.lastName}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, color: '#0277BD' }}>
+                        {patient.opNumber}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{patient.phone}</TableCell>
+                    <TableCell>
+                      {new Date(patient.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        sx={{ bgcolor: '#0277BD' }}
+                        onClick={() => handleEnableAccess(patient._id)}
+                        disabled={enableLoading === patient._id}
+                      >
+                        {enableLoading === patient._id ? (
+                          <CircularProgress size={20} sx={{ color: '#fff' }} />
+                        ) : (
+                          'Enable'
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
+
+      {/* Password Display Dialog */}
+      <Dialog
+        open={passwordDialog.open}
+        onClose={() => setPasswordDialog({ open: false, data: null })}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ bgcolor: '#0277BD', color: '#fff', fontWeight: 700 }}>
+          ✅ Portal Access Enabled
+        </DialogTitle>
+        <DialogContent sx={{ mt: 3 }}>
+          {passwordDialog.data && (
+            <>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                Patient: <strong>{passwordDialog.data.name}</strong>
+              </Typography>
+
+              <Paper sx={{ p: 2, bgcolor: '#e3f2fd', mb: 2, border: '2px solid #0277BD' }}>
+                <Typography variant="caption" color="text.secondary">OP Number</Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#0277BD', fontFamily: 'monospace' }}>
+                    {passwordDialog.data.opNumber}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      navigator.clipboard.writeText(passwordDialog.data.opNumber);
+                      openSnack("success", "OP Number copied!");
+                    }}
+                    startIcon={<FileCopyIcon />}
+                  >
+                    Copy
+                  </Button>
+                </Stack>
+              </Paper>
+
+              <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '2px solid #FF9800' }}>
+                <Typography variant="caption" color="text.secondary">Portal Password (Share with Patient)</Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#FF9800', fontFamily: 'monospace', letterSpacing: 1 }}>
+                    {passwordDialog.data.portalPassword}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="warning"
+                    onClick={() => {
+                      navigator.clipboard.writeText(passwordDialog.data.portalPassword);
+                      openSnack("success", "Password copied!");
+                    }}
+                    startIcon={<FileCopyIcon />}
+                  >
+                    Copy
+                  </Button>
+                </Stack>
+                <Typography variant="caption" sx={{ mt: 2, display: 'block', color: '#d84315', fontWeight: 500 }}>
+                  ⚠️ Share this password with the patient via WhatsApp or phone.
+                </Typography>
+              </Paper>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => setPasswordDialog({ open: false, data: null })}
+            variant="contained"
+            sx={{ bgcolor: '#0277BD' }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snack.open}
         autoHideDuration={4000}
@@ -222,6 +541,10 @@ function ReceptionDashboard() {
             <ListItemIcon sx={{ color: '#fff' }}><PersonAddIcon /></ListItemIcon>
             <ListItemText primary="Register Patient" />
           </ListItemButton>
+          <ListItemButton component={Link} to="/reception-dashboard/manage-access">
+            <ListItemIcon sx={{ color: '#fff' }}><VpnKeyIcon /></ListItemIcon>
+            <ListItemText primary="Enable Portal Access" />
+          </ListItemButton>
           <ListItemButton component={Link} to="/reception-dashboard/appointments">
             <ListItemIcon sx={{ color: '#fff' }}><EventNoteIcon /></ListItemIcon>
             <ListItemText primary="Appointments" />
@@ -260,6 +583,7 @@ function ReceptionDashboard() {
         <Box sx={{ p: 3 }}>
           <Routes>
             <Route index element={<AddPatientForm />} />
+            <Route path="manage-access" element={<ManagePatientAccess />} />
             <Route path="appointments" element={<CreateVisit />} />
             <Route path="visits" element={<VisitList />} />
             <Route path="billing" element={<UnderConstruction title="Billing" />} />

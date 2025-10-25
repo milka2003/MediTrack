@@ -76,27 +76,55 @@ function LandingPage() {
             Caring for you with compassion and excellence
           </Typography>
 
-          {/* Staff Login button */}
-          <Button
-            component={Link}
-            to="/login"
-            variant="contained"
-            size="large"
-            sx={{
-              borderRadius: 10,
-              px: 4,
-              py: 1.5,
-              fontWeight: 'bold',
-              boxShadow: '0 8px 18px rgba(25,118,210,.30)',
-              transition: 'transform .15s ease, box-shadow .2s ease',
-              '&:hover': {
-                transform: 'translateY(-1px)',
-                boxShadow: '0 12px 26px rgba(25,118,210,.38)',
-              },
-            }}
-          >
-            Staff Login
-          </Button>
+          {/* Login buttons */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            {/* Staff Login button */}
+            <Button
+              component={Link}
+              to="/login"
+              variant="contained"
+              size="large"
+              sx={{
+                borderRadius: 10,
+                px: 4,
+                py: 1.5,
+                fontWeight: 'bold',
+                boxShadow: '0 8px 18px rgba(25,118,210,.30)',
+                transition: 'transform .15s ease, box-shadow .2s ease',
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 12px 26px rgba(25,118,210,.38)',
+                },
+              }}
+            >
+              Staff Login
+            </Button>
+            
+            {/* Patient Portal button */}
+            <Button
+              component={Link}
+              to="/patient-login"
+              variant="outlined"
+              size="large"
+              sx={{
+                borderRadius: 10,
+                px: 4,
+                py: 1.5,
+                fontWeight: 'bold',
+                borderColor: '#1976d2',
+                color: '#1976d2',
+                transition: 'transform .15s ease, box-shadow .2s ease',
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(25,118,210,.20)',
+                  borderColor: '#1565C0',
+                  backgroundColor: 'rgba(25,118,210,0.04)',
+                },
+              }}
+            >
+              Patient Portal
+            </Button>
+          </Box>
         </Paper>
       </Box>
     </Box>
