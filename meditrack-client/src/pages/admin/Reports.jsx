@@ -77,7 +77,6 @@ function Reports() {
   const [departments, setDepartments] = useState([]);
   const [referenceLoading, setReferenceLoading] = useState(false);
   const [mlData, setMlData] = useState(null);
-  const [mlLoading, setMlLoading] = useState(false);
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -169,14 +168,11 @@ function Reports() {
   useEffect(() => {
     const fetchMLAnalysis = async () => {
       try {
-        setMlLoading(true);
         const { data } = await api.get("/reports/ml-analysis");
         setMlData(data);
       } catch (mlError) {
         console.error("Failed to load ML analysis", mlError);
         // Don't set error, just leave mlData null
-      } finally {
-        setMlLoading(false);
       }
     };
 

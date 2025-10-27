@@ -49,7 +49,6 @@ export default function LabDashboard() {
       });
       setMessage("Result saved");
       setSelected(null);
-      setTestParameters([]);
       setResultForm({
         parameterResults: [],
         overallRemarks: "",

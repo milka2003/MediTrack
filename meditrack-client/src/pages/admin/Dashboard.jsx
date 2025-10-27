@@ -1,7 +1,7 @@
 // src/pages/admin/Dashboard.jsx
 import React from "react";
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, Typography, Toolbar, AppBar, Button, Avatar, Stack } from "@mui/material";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
