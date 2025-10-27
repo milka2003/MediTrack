@@ -1,9 +1,9 @@
 // src/pages/LabDashboard.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack,
-  Chip, Alert, Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
+  Chip, Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Drawer, Toolbar, AppBar
 } from "@mui/material";
 import {
@@ -23,7 +23,6 @@ export default function LabDashboard() {
   const [message, setMessage] = useState("");
 
   const [selected, setSelected] = useState(null); // { consultationId, itemIndex, ... }
-  const [testParameters, setTestParameters] = useState([]);
   const [resultForm, setResultForm] = useState({
     parameterResults: [],
     overallRemarks: "",
@@ -89,7 +88,6 @@ export default function LabDashboard() {
     try {
       // Load test details to get parameters
       const { data } = await api.get(`/lab-tests/${row.testId}`);
-      setTestParameters(data.test.parameters || []);
 
       // Initialize parameterResults if not exists
       const existingResults = row.parameterResults || [];
@@ -116,13 +114,11 @@ export default function LabDashboard() {
         ? "Test not found - it may have been deleted"
         : (e.response?.data?.message || "Failed to load test parameters");
       setMessage(errorMsg);
-      setTestParameters([]);
     }
   };
 
   const closeDialog = () => {
     setSelected(null);
-    setTestParameters([]);
     setResultForm({
       parameterResults: [],
       overallRemarks: "",

@@ -1,6 +1,6 @@
 // src/pages/pharmacy/AddMedicine.jsx
 import React, { useState } from 'react';
-import { Box, Paper, Stack, TextField, MenuItem, Button, Typography } from '@mui/material';
+import { Paper, Stack, TextField, MenuItem, Button, Typography } from '@mui/material';
 import api from '../../api/client';
 
 export default function AddMedicine({ onSaved }) {

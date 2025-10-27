@@ -1,5 +1,5 @@
 // src/pages/BillingDashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -27,8 +27,6 @@ import {
   Divider,
   Alert,
   Snackbar,
-  Tabs,
-  Tab,
   Drawer,
   List,
   ListItem,
@@ -46,12 +44,10 @@ import api from "../api/client";
 import LogoutIcon from '@mui/icons-material/Logout';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
 import PrintIcon from '@mui/icons-material/Print';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PaymentIcon from '@mui/icons-material/Payment';
@@ -73,7 +69,6 @@ function BillingDashboard() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState('search'); // 'search' or 'all'
-  const [message, setMessage] = useState("");
   const [snack, setSnack] = useState({ open: false, severity: "info", text: "" });
 
   const openSnack = (severity, text) => setSnack({ open: true, severity, text });
@@ -101,18 +96,7 @@ function BillingDashboard() {
     }
   };
 
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (!t) {
-      navigate("/login");
-      return;
-    }
-    if (view === 'all') {
-      loadAllBills();
-    }
-  }, [navigate, view]);
-
-  const loadAllBills = async () => {
+  const loadAllBills = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/billing');
@@ -123,7 +107,18 @@ function BillingDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) {
+      navigate("/login");
+      return;
+    }
+    if (view === 'all') {
+      loadAllBills();
+    }
+  }, [navigate, view, loadAllBills]);
 
   const handleSearch = async () => {
     if (!searchOp.trim()) return;

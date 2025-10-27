@@ -1,5 +1,5 @@
 // src/pages/DoctorDashboard.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -74,16 +74,7 @@ export default function DoctorDashboard() {
     labRequests: [{ testName: "", notes: "", status: "Pending" }],
   });
 
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (!t) {
-      navigate("/login");
-      return;
-    }
-    loadVisits();
-  }, [date]);
-
-  const loadVisits = async () => {
+  const loadVisits = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get(`/doctor/visits?date=${date}`);
@@ -93,7 +84,16 @@ export default function DoctorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [date]);
+
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) {
+      navigate("/login");
+      return;
+    }
+    loadVisits();
+  }, [date, navigate, loadVisits]);
 
   const counts = useMemo(() => {
     const c = { open: 0, closed: 0, cancelled: 0, "no-show": 0 };

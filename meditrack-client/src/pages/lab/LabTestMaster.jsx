@@ -1,5 +1,5 @@
 // src/pages/lab/LabTestMaster.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Paper, Stack, Typography, TextField, Button, MenuItem, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
 import api from '../../api/client';
 import { useNavigate } from 'react-router-dom';
@@ -16,16 +16,16 @@ export default function LabTestMaster() {
   });
   const [message, setMessage] = useState('');
 
-  const loadDeps = async () => {
+  const loadDeps = useCallback(async () => {
     try {
       const { data } = await api.get('/admin/departments');
       setDepartments(data.departments || []);
     } catch (e) {
       setMessage(e.response?.data?.message || 'Failed to load departments');
     }
-  };
+  }, []);
 
-  const loadTests = async () => {
+  const loadTests = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filter.q) params.set('q', filter.q);
@@ -36,10 +36,10 @@ export default function LabTestMaster() {
     } catch (e) {
       setMessage(e.response?.data?.message || 'Failed to load tests');
     }
-  };
+  }, [filter]);
 
-  useEffect(() => { loadDeps(); }, []);
-  useEffect(() => { loadTests(); }, [filter]);
+  useEffect(() => { loadDeps(); }, [loadDeps]);
+  useEffect(() => { loadTests(); }, [filter, loadTests]);
 
   const resetForm = () => setForm({
     _id: '', name: '', code: '', department: '', price: '', description: '', sampleRequired: '', status: 'Active',

@@ -1,5 +1,5 @@
 // src/pages/admin/Staff.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Paper,
@@ -39,7 +39,7 @@ export default function Staff() {
 
   const [resetDialog, setResetDialog] = useState({ open: false, user: null, temp: "" });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get("/admin/staff" + (roleFilter ? `?role=${encodeURIComponent(roleFilter)}` : ""));
@@ -49,9 +49,9 @@ export default function Staff() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [roleFilter]);
 
-  useEffect(() => { load(); }, [roleFilter]);
+  useEffect(() => { load(); }, [roleFilter, load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

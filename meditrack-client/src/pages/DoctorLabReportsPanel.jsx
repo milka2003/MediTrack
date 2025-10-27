@@ -1,5 +1,5 @@
 // src/pages/DoctorLabReportsPanel.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import api from '../api/client';
 
@@ -11,7 +11,7 @@ export default function DoctorLabReportsPanel() {
   const [data, setData] = useState({ items: [], page: 1, limit: 20, total: 0 });
   const [loading, setLoading] = useState(false);
 
-  const load = async (page = 1) => {
+  const load = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -28,18 +28,18 @@ export default function DoctorLabReportsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [q, test, dateFrom, dateTo, data.limit]);
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); }, [load]);
   useEffect(() => {
     const t = setTimeout(() => load(1), 300);
     return () => clearTimeout(t);
-  }, [q, test, dateFrom, dateTo]);
+  }, [q, test, dateFrom, dateTo, load]);
 
   useEffect(() => {
     const id = setInterval(() => load(data.page || 1), 15000);
     return () => clearInterval(id);
-  }, [data.page, q, test, dateFrom, dateTo]);
+  }, [data.page, load]);
 
   const openReport = (reportUrl) => {
     const base = 'http://localhost:5000/api';

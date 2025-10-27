@@ -1,6 +1,6 @@
 // src/pages/pharmacy/Reports.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Paper, Typography, Stack, Button, Divider, TextField, Chip, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Paper, Typography, Stack, Button, TextField, Chip, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
 import api from '../../api/client';
 
 function formatDate(d) {

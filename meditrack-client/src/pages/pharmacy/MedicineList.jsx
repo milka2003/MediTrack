@@ -1,6 +1,6 @@
 // src/pages/pharmacy/MedicineList.jsx
-import React, { useEffect, useState } from 'react';
-import { Paper, Box, Stack, TextField, Button, Typography, Table, TableHead, TableRow, TableCell, TableBody, Switch } from '@mui/material';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Paper, Stack, TextField, Button, Typography, Table, TableHead, TableRow, TableCell, TableBody, Switch } from '@mui/material';
 import api from '../../api/client';
 
 export default function MedicineList() {
@@ -8,16 +8,16 @@ export default function MedicineList() {
   const [q, setQ] = useState('');
   const [message, setMessage] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const { data } = await api.get(`/medicines?q=${encodeURIComponent(q)}`);
       setRows(data.medicines || []);
     } catch (e) {
       setMessage(e.response?.data?.message || 'Failed to load');
     }
-  };
+  }, [q]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [q, load]);
 
   const toggleActive = async (id) => {
     await api.delete(`/medicines/${id}/toggle`);

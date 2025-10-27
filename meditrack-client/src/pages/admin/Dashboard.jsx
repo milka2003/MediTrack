@@ -2,7 +2,6 @@
 import React from "react";
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, Typography, Toolbar, AppBar, Button, Avatar, Stack } from "@mui/material";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
@@ -13,7 +12,6 @@ import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user"));
 
   // ==== LOGOUT ====

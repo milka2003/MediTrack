@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import {
   Drawer,
@@ -16,14 +16,11 @@ import {
   Paper,
   Grid,
   Stack,
-  Divider,
   Avatar,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  Chip,
-  ContentCopyIcon
+  DialogActions
 } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
@@ -285,12 +282,7 @@ function ManagePatientAccess() {
   const openSnack = (severity, text) => setSnack({ open: true, severity, text });
   const closeSnack = () => setSnack({ ...snack, open: false });
 
-  // Fetch patients without portal access
-  React.useEffect(() => {
-    fetchPatients();
-  }, []);
-
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -305,7 +297,12 @@ function ManagePatientAccess() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch patients without portal access
+  React.useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
 
   const handleEnableAccess = async (patientId) => {
     try {

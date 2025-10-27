@@ -472,7 +472,7 @@ function Reports() {
       currentY
     );
 
-    currentY = addTable(
+    addTable(
       "Top Medicines",
       ["Medicine", "Quantity", "Sales"],
       (reports.pharmacy?.topMedicines || []).map((item) => [

@@ -6,12 +6,11 @@ import {
   ListItem, ListItemButton, ListItemIcon, ListItemText, Divider, Stack, Chip
 } from '@mui/material';
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import {
   Dashboard as DashboardIcon,
-  Assessment as AssessmentIcon,
   Psychology as PsychologyIcon,
   Logout as LogoutIcon
 } from '@mui/icons-material';
