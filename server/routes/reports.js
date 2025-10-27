@@ -512,4 +512,77 @@ router.get(
   }
 );
 
+// GET /api/reports/ml-analysis
+// ML Model Analysis and Comparison
+router.get(
+  "/ml-analysis",
+  authAny,
+  requireStaff(["Admin"]),
+  async (req, res) => {
+    try {
+      const labAnomalyDetection = require("../ml/labAnomalyDetection");
+
+      // Get model comparison
+      const modelComparison = labAnomalyDetection.getModelComparison();
+
+      // Get best model
+      const bestModel = labAnomalyDetection.getBestModel();
+
+      // Get prediction insights (bed occupancy, patient risk, etc.)
+      let predictionInsights = {
+        modelsTrained: modelComparison.trained,
+        lastTrainingDate: modelComparison.trainingDate,
+      };
+
+      if (modelComparison.trained && bestModel) {
+        // Calculate average metrics
+        const avgMetrics = {
+          avgAccuracy:
+            modelComparison.models.reduce((sum, m) => sum + m.accuracy, 0) /
+            modelComparison.models.length,
+          avgPrecision:
+            modelComparison.models.reduce((sum, m) => sum + m.precision, 0) /
+            modelComparison.models.length,
+          avgRecall:
+            modelComparison.models.reduce((sum, m) => sum + m.recall, 0) /
+            modelComparison.models.length,
+          avgF1Score:
+            modelComparison.models.reduce((sum, m) => sum + m.f1Score, 0) /
+            modelComparison.models.length,
+        };
+
+        // Prediction insight: based on best model performance
+        let riskLevel = "Low";
+        if (bestModel.metrics.f1Score < 60) {
+          riskLevel = "High";
+        } else if (bestModel.metrics.f1Score < 75) {
+          riskLevel = "Medium";
+        }
+
+        predictionInsights = {
+          ...predictionInsights,
+          bestModel: {
+            name: bestModel.modelName,
+            f1Score: bestModel.metrics.f1Score,
+            accuracy: bestModel.metrics.accuracy,
+          },
+          averageMetrics: avgMetrics,
+          modelReliability: riskLevel,
+          totalModels: modelComparison.models.length,
+          predictionSummary: `${riskLevel} - Best Model: ${bestModel.modelName} (F1: ${bestModel.metrics.f1Score.toFixed(2)}%)`,
+        };
+      }
+
+      res.json({
+        success: true,
+        models: modelComparison.models || [],
+        insights: predictionInsights,
+      });
+    } catch (error) {
+      console.error("ML analysis report error", error);
+      res.status(500).json({ message: "Failed to generate ML analysis report" });
+    }
+  }
+);
+
 module.exports = router;

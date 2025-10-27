@@ -76,6 +76,8 @@ function Reports() {
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [referenceLoading, setReferenceLoading] = useState(false);
+  const [mlData, setMlData] = useState(null);
+  const [mlLoading, setMlLoading] = useState(false);
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -162,6 +164,24 @@ function Reports() {
 
     fetchReports();
   }, [appliedFilters]);
+
+  // Fetch ML analysis data
+  useEffect(() => {
+    const fetchMLAnalysis = async () => {
+      try {
+        setMlLoading(true);
+        const { data } = await api.get("/reports/ml-analysis");
+        setMlData(data);
+      } catch (mlError) {
+        console.error("Failed to load ML analysis", mlError);
+        // Don't set error, just leave mlData null
+      } finally {
+        setMlLoading(false);
+      }
+    };
+
+    fetchMLAnalysis();
+  }, []);
 
   const handleFilterChange = (field) => (event) => {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
@@ -926,6 +946,214 @@ function Reports() {
             </TableContainer>
           </Paper>
         </Grid>
+
+        {/* ML Analysis Section */}
+        {mlData && mlData.success && (
+          <>
+            {/* ML Prediction Insight Card */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                  🤖 ML Model Intelligence & Predictions
+                </Typography>
+                {mlData.insights.modelsTrained ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body1">
+                      <strong>Status:</strong> {mlData.insights.modelReliability || "Ready"}
+                    </Typography>
+                    <Typography variant="body1">
+                      <strong>Prediction Summary:</strong> {mlData.insights.predictionSummary}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Last Trained: {mlData.insights.lastTrainingDate ? new Date(mlData.insights.lastTrainingDate).toLocaleDateString() : "Not yet trained"}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    ℹ️ Models have not been trained yet. Please train models in the ML Dashboard to see predictions.
+                  </Typography>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* ML Model Comparison Bar Chart */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                  Model Performance Comparison
+                </Typography>
+                {mlData.models && mlData.models.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={mlData.models.map((model) => ({
+                        name: model.name.charAt(0).toUpperCase() + model.name.slice(1).replace(/([A-Z])/g, " $1"),
+                        Accuracy: model.accuracy,
+                        Precision: model.precision,
+                        Recall: model.recall,
+                        "F1-Score": model.f1Score,
+                      }))}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="Accuracy" fill="#8884d8" />
+                      <Bar dataKey="Precision" fill="#82ca9d" />
+                      <Bar dataKey="Recall" fill="#ffc658" />
+                      <Bar dataKey="F1-Score" fill="#ff7c7c" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
+                    No model data available. Train models to see comparison.
+                  </Typography>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* ML Model Detailed Metrics Table */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                  Detailed Model Metrics
+                </Typography>
+                {mlData.models && mlData.models.length > 0 ? (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                          <TableCell><strong>Model Name</strong></TableCell>
+                          <TableCell align="center"><strong>Accuracy (%)</strong></TableCell>
+                          <TableCell align="center"><strong>Precision (%)</strong></TableCell>
+                          <TableCell align="center"><strong>Recall (%)</strong></TableCell>
+                          <TableCell align="center"><strong>F1-Score (%)</strong></TableCell>
+                          <TableCell align="center"><strong>TP</strong></TableCell>
+                          <TableCell align="center"><strong>FP</strong></TableCell>
+                          <TableCell align="center"><strong>TN</strong></TableCell>
+                          <TableCell align="center"><strong>FN</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {mlData.models.map((model, idx) => {
+                          const modelName = model.name.charAt(0).toUpperCase() + model.name.slice(1).replace(/([A-Z])/g, " $1");
+                          const f1Score = model.f1Score || 0;
+                          const getChipColor = () => {
+                            if (f1Score > 85) return "success";
+                            if (f1Score > 70) return "warning";
+                            return "error";
+                          };
+
+                          return (
+                            <TableRow key={idx} hover>
+                              <TableCell><strong>{modelName}</strong></TableCell>
+                              <TableCell align="center">{(model.accuracy || 0).toFixed(2)}</TableCell>
+                              <TableCell align="center">{(model.precision || 0).toFixed(2)}</TableCell>
+                              <TableCell align="center">{(model.recall || 0).toFixed(2)}</TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={`${(f1Score || 0).toFixed(2)}`}
+                                  size="small"
+                                  color={getChipColor()}
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell align="center">{model.truePositives || 0}</TableCell>
+                              <TableCell align="center">{model.falsePositives || 0}</TableCell>
+                              <TableCell align="center">{model.trueNegatives || 0}</TableCell>
+                              <TableCell align="center">{model.falseNegatives || 0}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
+                    No model metrics available. Train models to see detailed metrics.
+                  </Typography>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* Model Statistics Cards */}
+            {mlData.insights.averageMetrics && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>Average Accuracy</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {(mlData.insights.averageMetrics.avgAccuracy || 0).toFixed(2)}%
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
+            {mlData.insights.averageMetrics && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "white" }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>Average Precision</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {(mlData.insights.averageMetrics.avgPrecision || 0).toFixed(2)}%
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
+            {mlData.insights.averageMetrics && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", color: "white" }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>Average Recall</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {(mlData.insights.averageMetrics.avgRecall || 0).toFixed(2)}%
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
+            {mlData.insights.averageMetrics && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", color: "white" }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>Average F1-Score</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {(mlData.insights.averageMetrics.avgF1Score || 0).toFixed(2)}%
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
+
+            {/* ML Metrics Explanation */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2, backgroundColor: "#f9f9f9" }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                  📊 Understanding the Metrics
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Accuracy</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Percentage of correct predictions (TP+TN)/(Total)
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Precision</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Of predicted positives, how many were correct TP/(TP+FP)
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Recall</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Of actual positives, how many were found TP/(TP+FN)
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>F1-Score</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Harmonic mean of precision and recall (2×P×R)/(P+R)
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          </>
+        )}
       </Grid>
     </Box>
   );

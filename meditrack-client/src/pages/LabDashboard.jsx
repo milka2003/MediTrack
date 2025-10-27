@@ -3,8 +3,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack,
-  Chip, Alert, Divider
+  Chip, Alert, Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
+  Drawer, Toolbar, AppBar
 } from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Psychology as PsychologyIcon,
+  Logout as LogoutIcon
+} from "@mui/icons-material";
 import api from "../api/client";
 import { useNavigate } from "react-router-dom";
 
@@ -208,238 +216,306 @@ export default function LabDashboard() {
     }
   };
 
+  const DRAWER_WIDTH = 260;
+
+  const menuItems = [
+    { label: 'Dashboard', icon: <DashboardIcon />, path: '/lab-dashboard' },
+    { label: 'Lab Test Master', icon: <AssignmentIcon />, path: '/lab-dashboard/tests' },
+    { label: 'Pending Reports', icon: <AssignmentIcon />, path: '/lab-dashboard/reports/pending' },
+    { label: 'Completed Reports', icon: <CheckCircleIcon />, path: '/lab-dashboard/reports/completed' },
+    { label: 'ML Models', icon: <PsychologyIcon />, path: '/ml-dashboard' }
+  ];
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h5" gutterBottom>
-          Lab Dashboard
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" onClick={() => navigate('/lab-dashboard/tests')}>Lab Test Master</Button>
-          <Button variant="outlined" onClick={() => navigate('/lab-dashboard/reports/pending')}>Pending Report</Button>
-          <Button variant="outlined" onClick={() => navigate('/lab-dashboard/reports/completed')}>Completed Report</Button>
-          <Button variant="outlined" color="inherit" onClick={handleLogout}>Logout</Button>
-        </Stack>
-      </Box>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      {/* AppBar */}
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Toolbar>
+          <Typography variant="h6" noWrap component="div">
+            Lab Dashboard
+          </Typography>
+        </Toolbar>
+      </AppBar>
 
-      {message && (
-        <Typography sx={{ mb: 2 }} color="primary">{message}</Typography>
-      )}
+      {/* Sidebar */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            mt: '64px',
+            height: 'calc(100% - 64px)'
+          }
+        }}
+      >
+        <Toolbar /> {/* This creates spacing below the AppBar */}
+        <List>
+          {menuItems.map((item) => (
+            <ListItem key={item.label} disablePadding>
+              <ListItemButton
+                onClick={() => navigate(item.path)}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: '#f0f0f0'
+                  }
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        <Divider />
+        <List>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={handleLogout}
+              sx={{
+                '&:hover': {
+                  backgroundColor: '#ffebee'
+                }
+              }}
+            >
+              <ListItemIcon><LogoutIcon color="error" /></ListItemIcon>
+              <ListItemText primary="Logout" />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Drawer>
 
-      {/* Pending Requests */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>Pending Tests</Typography>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Token</TableCell>
-              <TableCell>Visit ID</TableCell>
-              <TableCell>Patient</TableCell>
-              <TableCell>Doctor</TableCell>
-              <TableCell>Test</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {pending.map((r) => (
-              <TableRow key={`${r.consultationId}-${r.itemIndex}`} hover>
-                <TableCell>{r.tokenNumber || '-'}</TableCell>
-                <TableCell>{r.visitId}</TableCell>
-                <TableCell>
-                  {r.patient?.name} ({r.patient?.opNumber})
-                </TableCell>
-                <TableCell>{r.doctor?.name}</TableCell>
-                <TableCell>{r.testName}</TableCell>
-                <TableCell>{r.status}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button size="small" onClick={() => markCollected(r)} disabled={r.status !== 'Pending'}>
-                      Mark Collected
-                    </Button>
-                    <Button size="small" variant="outlined" onClick={() => openDialog(r)} disabled={r.status === 'Completed'}>
-                      Enter Result
-                    </Button>
-                    {r.status === 'Completed' && (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        color="success"
-                        onClick={() => downloadReport(r.consultationId, r.itemIndex)}
-                      >
-                        Download Report
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          p: 3,
+          mt: '64px',
+          backgroundColor: '#fafafa'
+        }}
+      >
+        {message && (
+          <Typography sx={{ mb: 2 }} color="primary">{message}</Typography>
+        )}
+
+        {/* Pending Requests */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="subtitle1" gutterBottom>Pending Tests</Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Token</TableCell>
+                <TableCell>Visit ID</TableCell>
+                <TableCell>Patient</TableCell>
+                <TableCell>Doctor</TableCell>
+                <TableCell>Test</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pending.map((r) => (
+                <TableRow key={`${r.consultationId}-${r.itemIndex}`} hover>
+                  <TableCell>{r.tokenNumber || '-'}</TableCell>
+                  <TableCell>{r.visitId}</TableCell>
+                  <TableCell>
+                    {r.patient?.name} ({r.patient?.opNumber})
+                  </TableCell>
+                  <TableCell>{r.doctor?.name}</TableCell>
+                  <TableCell>{r.testName}</TableCell>
+                  <TableCell>{r.status}</TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button size="small" onClick={() => markCollected(r)} disabled={r.status !== 'Pending'}>
+                        Mark Collected
                       </Button>
+                      <Button size="small" variant="outlined" onClick={() => openDialog(r)} disabled={r.status === 'Completed'}>
+                        Enter Result
+                      </Button>
+                      {r.status === 'Completed' && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          onClick={() => downloadReport(r.consultationId, r.itemIndex)}
+                        >
+                          Download Report
+                        </Button>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {pending.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7}>No pending tests.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Paper>
+
+        {/* History Search */}
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Search Results History</Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+            <TextField
+              label="OP Number"
+              value={query.opNumber}
+              onChange={(e) => setQuery({ ...query, opNumber: e.target.value })}
+            />
+            <Button variant="contained" onClick={searchHistory}>Search</Button>
+          </Stack>
+
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Visit</TableCell>
+                <TableCell>Patient</TableCell>
+                <TableCell>Doctor</TableCell>
+                <TableCell>Tests</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {history.map((h) => (
+                <TableRow key={h.id}>
+                  <TableCell>{h.visitId}</TableCell>
+                  <TableCell>{h.patient?.name} ({h.patient?.opNumber})</TableCell>
+                  <TableCell>{h.doctor?.name}</TableCell>
+                  <TableCell>
+                    {h.labRequests?.map((lr, i) => (
+                      <div key={i} style={{ marginBottom: '8px' }}>
+                        <strong>{lr.testName}</strong> — {lr.status}
+                        {lr.parameterResults && lr.parameterResults.length > 0 && (
+                          <div style={{ marginLeft: '16px', fontSize: '0.875rem' }}>
+                            {lr.parameterResults.map((pr, j) => (
+                              <div key={j}>
+                                {pr.parameterName}: {pr.value || 'N/A'}
+                                {pr.isAbnormal && <Chip label="Abnormal" color="error" size="small" sx={{ ml: 1, fontSize: '0.7rem' }} />}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {lr.summaryResult && (
+                          <div style={{ marginLeft: '16px', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                            Summary: {lr.summaryResult}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {history.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4}>No results.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Paper>
+
+        {/* Update Result Dialog */}
+        <Dialog open={!!selected} onClose={closeDialog} fullWidth maxWidth="md">
+          <DialogTitle>Enter Results — {selected?.testName}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={3} sx={{ mt: 1 }}>
+              {resultForm.parameterResults.map((paramResult, index) => (
+                <Paper key={index} sx={{ p: 2, bgcolor: '#f9f9f9' }}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                    {paramResult.parameterName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Reference Range: {paramResult.referenceRange || 'N/A'}
+                  </Typography>
+
+                  <Stack spacing={2}>
+                    {paramResult.valueType === 'numeric' && (
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                        <TextField
+                          label="Value"
+                          type="number"
+                          value={paramResult.value}
+                          onChange={(e) => updateParameterResult(index, 'value', e.target.value)}
+                          sx={{ flex: 1 }}
+                        />
+                        <Typography>Unit: {paramResult.unit}</Typography>
+                        {paramResult.isAbnormal && (
+                          <Chip label="Abnormal" color="error" size="small" />
+                        )}
+                      </Stack>
                     )}
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-            {pending.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7}>No pending tests.</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Paper>
 
-      {/* History Search */}
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle1" gutterBottom>Search Results History</Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-          <TextField
-            label="OP Number"
-            value={query.opNumber}
-            onChange={(e) => setQuery({ ...query, opNumber: e.target.value })}
-          />
-          <Button variant="contained" onClick={searchHistory}>Search</Button>
-        </Stack>
-
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Visit</TableCell>
-              <TableCell>Patient</TableCell>
-              <TableCell>Doctor</TableCell>
-              <TableCell>Tests</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {history.map((h) => (
-              <TableRow key={h.id}>
-                <TableCell>{h.visitId}</TableCell>
-                <TableCell>{h.patient?.name} ({h.patient?.opNumber})</TableCell>
-                <TableCell>{h.doctor?.name}</TableCell>
-                <TableCell>
-                  {h.labRequests?.map((lr, i) => (
-                    <div key={i} style={{ marginBottom: '8px' }}>
-                      <strong>{lr.testName}</strong> — {lr.status}
-                      {lr.parameterResults && lr.parameterResults.length > 0 && (
-                        <div style={{ marginLeft: '16px', fontSize: '0.875rem' }}>
-                          {lr.parameterResults.map((pr, j) => (
-                            <div key={j}>
-                              {pr.parameterName}: {pr.value || 'N/A'}
-                              {pr.isAbnormal && <Chip label="Abnormal" color="error" size="small" sx={{ ml: 1, fontSize: '0.7rem' }} />}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {lr.summaryResult && (
-                        <div style={{ marginLeft: '16px', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                          Summary: {lr.summaryResult}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </TableCell>
-              </TableRow>
-            ))}
-            {history.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>No results.</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Paper>
-
-      {/* Update Result Dialog */}
-      <Dialog open={!!selected} onClose={closeDialog} fullWidth maxWidth="md">
-        <DialogTitle>Enter Results — {selected?.testName}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={3} sx={{ mt: 1 }}>
-            {resultForm.parameterResults.map((paramResult, index) => (
-              <Paper key={index} sx={{ p: 2, bgcolor: '#f9f9f9' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
-                  {paramResult.parameterName}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Reference Range: {paramResult.referenceRange || 'N/A'}
-                </Typography>
-
-                <Stack spacing={2}>
-                  {paramResult.valueType === 'numeric' && (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                    {paramResult.valueType === 'text' && (
                       <TextField
-                        label="Value"
-                        type="number"
+                        label="Result"
                         value={paramResult.value}
                         onChange={(e) => updateParameterResult(index, 'value', e.target.value)}
-                        sx={{ flex: 1 }}
+                        multiline
+                        minRows={2}
                       />
-                      <Typography>Unit: {paramResult.unit}</Typography>
-                      {paramResult.isAbnormal && (
-                        <Chip label="Abnormal" color="error" size="small" />
-                      )}
-                    </Stack>
-                  )}
+                    )}
 
-                  {paramResult.valueType === 'text' && (
+                    {paramResult.valueType === 'file' && (
+                      <Stack spacing={1}>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleFileUpload(index, e.target.files[0])}
+                          style={{ display: 'none' }}
+                          id={`file-upload-${index}`}
+                        />
+                        <label htmlFor={`file-upload-${index}`}>
+                          <Button variant="outlined" component="span">
+                            Upload File
+                          </Button>
+                        </label>
+                        {paramResult.value && (
+                          <Typography variant="body2" color="primary">
+                            File uploaded: {paramResult.value.split('/').pop()}
+                          </Typography>
+                        )}
+                      </Stack>
+                    )}
+
                     <TextField
-                      label="Result"
-                      value={paramResult.value}
-                      onChange={(e) => updateParameterResult(index, 'value', e.target.value)}
-                      multiline
-                      minRows={2}
+                      label="Remarks"
+                      value={paramResult.remarks}
+                      onChange={(e) => updateParameterResult(index, 'remarks', e.target.value)}
+                      size="small"
                     />
-                  )}
+                  </Stack>
+                </Paper>
+              ))}
 
-                  {paramResult.valueType === 'file' && (
-                    <Stack spacing={1}>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleFileUpload(index, e.target.files[0])}
-                        style={{ display: 'none' }}
-                        id={`file-upload-${index}`}
-                      />
-                      <label htmlFor={`file-upload-${index}`}>
-                        <Button variant="outlined" component="span">
-                          Upload File
-                        </Button>
-                      </label>
-                      {paramResult.value && (
-                        <Typography variant="body2" color="primary">
-                          File uploaded: {paramResult.value.split('/').pop()}
-                        </Typography>
-                      )}
-                    </Stack>
-                  )}
+              <Divider />
 
-                  <TextField
-                    label="Remarks"
-                    value={paramResult.remarks}
-                    onChange={(e) => updateParameterResult(index, 'remarks', e.target.value)}
-                    size="small"
-                  />
-                </Stack>
-              </Paper>
-            ))}
+              <TextField
+                label="Overall Remarks"
+                value={resultForm.overallRemarks}
+                onChange={(e) => setResultForm({ ...resultForm, overallRemarks: e.target.value })}
+                multiline
+                minRows={2}
+              />
 
-            <Divider />
-
-            <TextField
-              label="Overall Remarks"
-              value={resultForm.overallRemarks}
-              onChange={(e) => setResultForm({ ...resultForm, overallRemarks: e.target.value })}
-              multiline
-              minRows={2}
-            />
-
-            <TextField
-              label="Summary Result"
-              value={resultForm.summaryResult}
-              onChange={(e) => setResultForm({ ...resultForm, summaryResult: e.target.value })}
-              multiline
-              minRows={2}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog}>Cancel</Button>
-          <Button variant="contained" onClick={saveResult}>Save Results</Button>
-        </DialogActions>
-      </Dialog>
+              <TextField
+                label="Summary Result"
+                value={resultForm.summaryResult}
+                onChange={(e) => setResultForm({ ...resultForm, summaryResult: e.target.value })}
+                multiline
+                minRows={2}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeDialog}>Cancel</Button>
+            <Button variant="contained" onClick={saveResult}>Save Results</Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
     </Box>
   );
 }

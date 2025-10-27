@@ -36,6 +36,7 @@ import PatientBills from "./pages/patient/Bills";
 import AddStaff from "./pages/admin/AddStaff"; 
 import Staff from "./pages/admin/Staff";
 import AdminOverview from "./pages/admin/AdminOverview";
+import MLDashboard from "./pages/MLDashboard";
 // Later you can add these when ready
 // import Reports from "./pages/admin/Reports";
 // import Doctors from "./pages/admin/Doctors";
@@ -94,6 +95,7 @@ function App() {
         <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
         <Route path="/nurse-dashboard" element={<NurseDashboard />} />
         <Route path="/billing-dashboard" element={<BillingDashboard />} />
+        <Route path="/ml-dashboard" element={<ProtectedRoute roles={["Lab"]}><MLDashboard /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
