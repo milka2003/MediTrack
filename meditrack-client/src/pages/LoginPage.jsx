@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, TextField, Button, Typography } from "@mui/material";
 import axios from "axios";
+import loginBg from "../assets/login1.jpg";
 
 function LoginPage() {
   const [identifier, setIdentifier] = useState(""); // username or email
@@ -61,7 +62,7 @@ function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundImage: "url('/login-bg.jpg')", // background image in /public
+        backgroundImage: `url(${loginBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

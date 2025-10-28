@@ -39,6 +39,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
+import RazorpayCheckout from "../components/RazorpayCheckout";
 
 // Icons
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -70,6 +71,7 @@ function BillingDashboard() {
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState('search'); // 'search' or 'all'
   const [snack, setSnack] = useState({ open: false, severity: "info", text: "" });
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const openSnack = (severity, text) => setSnack({ open: true, severity, text });
   const closeSnack = () => setSnack({ ...snack, open: false });
@@ -907,11 +909,40 @@ function BillingDashboard() {
           <Button onClick={handlePrint} startIcon={<PrintIcon />} variant="outlined">
             Print
           </Button>
+          {balance > 0 && (
+            <Button 
+              onClick={() => setPaymentDialogOpen(true)} 
+              startIcon={<PaymentIcon />} 
+              variant="contained" 
+              sx={{ bgcolor: '#ff6f00' }}
+            >
+              Pay Now (₹{balance.toFixed(2)})
+            </Button>
+          )}
           <Button onClick={handleSaveBill} variant="contained">
             {selectedVisit?.bill ? 'Update Bill' : 'Save Bill'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Razorpay Checkout Dialog */}
+      {selectedVisit?.bill && (
+        <RazorpayCheckout
+          open={paymentDialogOpen}
+          onClose={() => setPaymentDialogOpen(false)}
+          billId={selectedVisit.bill._id}
+          amount={balance}
+          patientName={selectedVisit.bill.patientId?.firstName}
+          patientEmail={selectedVisit.bill.patientId?.email}
+          patientPhone={selectedVisit.bill.patientId?.phone}
+          onPaymentSuccess={(updatedBill) => {
+            openSnack('success', 'Payment successful! Bill has been marked as paid.');
+            setBillDialog(false);
+            setPaymentDialogOpen(false);
+            if (view === 'all') loadAllBills();
+          }}
+        />
+      )}
 
         <Snackbar
           open={snack.open}

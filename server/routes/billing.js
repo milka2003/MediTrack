@@ -1,5 +1,6 @@
 // routes/billing.js
 const express = require('express');
+const crypto = require('crypto');
 const Bill = require('../models/Bill');
 const Visit = require('../models/Visit');
 const Patient = require('../models/Patient');
@@ -8,6 +9,134 @@ const Medicine = require('../models/Medicine');
 const Consultation = require('../models/Consultation');
 const { authAny, requireStaff } = require('../middleware/auth');
 const router = express.Router();
+
+// Razorpay SDK
+const Razorpay = require('razorpay');
+const razorpay = new Razorpay({
+  key_id: process.env.key_id,
+  key_secret: process.env.key_secret
+});
+
+/**
+ * POST /api/billing/create-order
+ * Create a Razorpay order for payment
+ */
+router.post('/create-order', authAny, async (req, res) => {
+  try {
+    const { billId, amount, patientName, patientEmail, patientPhone } = req.body;
+
+    if (!billId || !amount) {
+      return res.status(400).json({ message: 'Bill ID and amount are required' });
+    }
+
+    // Convert amount to paise (smallest unit)
+    const amountInPaise = Math.round(amount * 100);
+
+    const options = {
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: billId,
+      payment_capture: 1,
+      notes: {
+        billId,
+        patientName: patientName || 'N/A',
+        patientEmail: patientEmail || 'N/A'
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    if (!order) {
+      return res.status(500).json({ message: 'Failed to create Razorpay order' });
+    }
+
+    // Store razorpayOrderId in bill
+    await Bill.findByIdAndUpdate(billId, { razorpayOrderId: order.id });
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.key_id
+    });
+  } catch (error) {
+    console.error('Error creating Razorpay order:', error);
+    res.status(500).json({ 
+      message: 'Error creating payment order',
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/billing/verify-payment
+ * Verify Razorpay payment with HMAC SHA256 signature
+ */
+router.post('/verify-payment', authAny, async (req, res) => {
+  try {
+    const { billId, razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentSource } = req.body;
+
+    if (!billId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ message: 'Missing required payment verification data' });
+    }
+
+    // Verify the signature using HMAC SHA256
+    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.key_secret)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Payment verification failed - Invalid signature' 
+      });
+    }
+
+    // Signature is valid - update bill with payment details
+    const bill = await Bill.findById(billId);
+    if (!bill) {
+      return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    // Update bill with payment information
+    bill.razorpayOrderId = razorpayOrderId;
+    bill.razorpayPaymentId = razorpayPaymentId;
+    bill.razorpaySignature = razorpaySignature;
+    bill.paymentSource = paymentSource || 'card';
+    bill.paymentMethod = mapPaymentSource(paymentSource);
+    bill.paidAmount = bill.totalAmount;
+    bill.status = 'Paid';
+
+    await bill.save();
+
+    res.json({
+      success: true,
+      message: 'Payment verified and bill updated successfully',
+      bill
+    });
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error verifying payment',
+      error: error.message 
+    });
+  }
+});
+
+// Helper function to map payment source to paymentMethod
+function mapPaymentSource(source) {
+  const sourceMap = {
+    upi: 'UPI',
+    card: 'Card',
+    netbanking: 'Netbanking',
+    wallet: 'Online'
+  };
+  return sourceMap[source] || 'Online';
+}
 
 /**
  * GET /api/billing/search?opNumber=

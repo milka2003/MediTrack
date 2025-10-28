@@ -18,12 +18,15 @@ import {
   DialogActions,
   Grid,
   Divider,
-  Chip
+  Chip,
+  Stack
 } from '@mui/material';
+import PaymentIcon from '@mui/icons-material/Payment';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import RazorpayCheckout from '../../components/RazorpayCheckout';
 
 // Format date
 const formatDate = (dateString) => {
@@ -51,6 +54,8 @@ function Bills() {
   const [error, setError] = useState('');
   const [selectedBill, setSelectedBill] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     fetchBills();
@@ -87,6 +92,28 @@ function Bills() {
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setPaymentSuccess(false);
+  };
+
+  const handlePaymentClick = () => {
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePaymentSuccess = (updatedBill) => {
+    setPaymentSuccess(true);
+    // Refresh bills list
+    fetchBills();
+    // Update selected bill
+    setSelectedBill(updatedBill);
+  };
+
+  const handleClosePaymentDialog = () => {
+    setPaymentDialogOpen(false);
+  };
+
+  const getBalanceDue = () => {
+    if (!selectedBill) return 0;
+    return (selectedBill.totalAmount || 0) - (selectedBill.discount || 0) - (selectedBill.amountPaid || 0);
   };
 
   const getPaymentStatusChip = (status) => {
@@ -253,17 +280,24 @@ function Bills() {
         <DialogTitle sx={{ bgcolor: '#f5f7fb', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Bill Details</span>
           {selectedBill && (
-            <Button 
-              variant="contained" 
-              size="small"
-              onClick={downloadPDF}
-              sx={{ bgcolor: '#0D47A1' }}
-            >
-              Download PDF
-            </Button>
+            <Stack direction="row" gap={1}>
+              <Button 
+                variant="contained" 
+                size="small"
+                onClick={downloadPDF}
+                sx={{ bgcolor: '#0D47A1' }}
+              >
+                Download PDF
+              </Button>
+            </Stack>
           )}
         </DialogTitle>
         <DialogContent dividers>
+          {paymentSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              ✓ Payment successful! Your bill has been marked as paid.
+            </Alert>
+          )}
           {selectedBill && (
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -375,10 +409,34 @@ function Bills() {
             </Grid>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2, bgcolor: '#f5f7fb' }}>
           <Button onClick={handleCloseDialog}>Close</Button>
+          {selectedBill && getBalanceDue() > 0 && selectedBill.paymentStatus !== 'paid' && (
+            <Button 
+              variant="contained"
+              startIcon={<PaymentIcon />}
+              sx={{ bgcolor: '#0D47A1' }}
+              onClick={handlePaymentClick}
+            >
+              Pay Now (₹{getBalanceDue().toFixed(2)})
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
+
+      {/* Razorpay Checkout Dialog */}
+      {selectedBill && (
+        <RazorpayCheckout
+          open={paymentDialogOpen}
+          onClose={handleClosePaymentDialog}
+          billId={selectedBill._id}
+          amount={getBalanceDue()}
+          patientName={selectedBill.patient?.firstName}
+          patientEmail={selectedBill.patient?.email}
+          patientPhone={selectedBill.patient?.phone}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </Box>
   );
 }

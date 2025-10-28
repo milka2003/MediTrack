@@ -16,7 +16,12 @@ const billSchema = new mongoose.Schema({
   paidAmount: { type: Number, default: 0 },
   balance: { type: Number, default: 0 },
   status: { type: String, enum: ['Paid', 'Unpaid', 'Partial'], default: 'Unpaid' },
-  paymentMethod: { type: String, enum: ['Cash', 'Card', 'UPI', 'Other'], default: 'Cash' },
+  paymentMethod: { type: String, enum: ['Cash', 'Card', 'UPI', 'Netbanking', 'Online'], default: 'Cash' },
+  // Razorpay tracking fields
+  razorpayOrderId: { type: String },
+  razorpayPaymentId: { type: String },
+  razorpaySignature: { type: String },
+  paymentSource: { type: String, enum: ['upi', 'card', 'netbanking', 'cash'] },
   createdAt: { type: Date, default: Date.now },
   generatedAt: { type: Date },
   lastUpdated: { type: Date, default: Date.now }

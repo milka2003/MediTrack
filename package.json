@@ -7,7 +7,7 @@
     "start": "cd server && npm start",
     "dev": "cd server && npm run dev",
     "client": "cd meditrack-client && npm start",
-    "build": "cd meditrack-client && npm run build",
+    "build": "npm run install-all && cd meditrack-client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../meditrack-client && npm install"
   },
   "keywords": [
