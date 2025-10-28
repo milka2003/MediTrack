@@ -65,6 +65,7 @@ export default function DoctorDashboard() {
   const [tab, setTab] = useState(0);
   const [activeVisit, setActiveVisit] = useState(null);
   const [history, setHistory] = useState([]);
+  const [messageType, setMessageType] = useState(''); // 'success' or 'error'
 
   const [consult, setConsult] = useState({
     chiefComplaints: "",
@@ -80,6 +81,7 @@ export default function DoctorDashboard() {
       const { data } = await api.get(`/doctor/visits?date=${date}`);
       setVisits(data.visits || []);
     } catch (e) {
+      setMessageType('error');
       setMessage(e.response?.data?.message || "Failed to load visits");
     } finally {
       setLoading(false);
@@ -137,9 +139,11 @@ export default function DoctorDashboard() {
         setHistory(hRes.value.data?.history || []);
       } else {
         setHistory([]);
+        setMessageType('error');
         setMessage(hRes.reason?.response?.data?.message || "Failed to load history");
       }
     } catch (e) {
+      setMessageType('error');
       setMessage(e.response?.data?.message || "Failed to load visit details");
     }
   };
@@ -152,6 +156,7 @@ export default function DoctorDashboard() {
         setActiveVisit((a) => ({ ...a, status }));
       }
     } catch (e) {
+      setMessageType('error');
       setMessage(e.response?.data?.message || "Failed to update status");
     }
   };
@@ -173,7 +178,11 @@ export default function DoctorDashboard() {
     if (!activeVisit) return;
     try {
       await api.post(`/doctor/consultations/${activeVisit._id}`, consult);
+      setMessageType('success');
+      setMessage("Consultation saved successfully");
+      setTimeout(() => setMessage(""), 3000); // Clear message after 3 seconds
     } catch (e) {
+      setMessageType('error');
       setMessage(e.response?.data?.message || "Failed to save consultation");
     }
   };
@@ -208,6 +217,7 @@ export default function DoctorDashboard() {
       link.click();
       link.remove();
     } catch (e) {
+      setMessageType('error');
       setMessage('Failed to download report');
     }
   };
@@ -352,7 +362,7 @@ export default function DoctorDashboard() {
               </Table>
               </Box>
               {message && (
-                <Typography sx={{ mt: 2 }} color="error">
+                <Typography sx={{ mt: 2, fontWeight: 600 }} color={messageType === 'success' ? 'success' : 'error'}>
                   {message}
                 </Typography>
               )}
