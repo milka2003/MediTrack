@@ -10,12 +10,22 @@ const Consultation = require('../models/Consultation');
 const { authAny, requireStaff } = require('../middleware/auth');
 const router = express.Router();
 
-// Razorpay SDK
+// Razorpay SDK - Lazy load only if credentials exist
 const Razorpay = require('razorpay');
-const razorpay = new Razorpay({
-  key_id: process.env.key_id,
-  key_secret: process.env.key_secret
-});
+let razorpay = null;
+
+function getRazorpayInstance() {
+  if (!razorpay) {
+    if (!process.env.key_id || !process.env.key_secret) {
+      throw new Error('Razorpay credentials (key_id and key_secret) are not configured. Please set environment variables.');
+    }
+    razorpay = new Razorpay({
+      key_id: process.env.key_id,
+      key_secret: process.env.key_secret
+    });
+  }
+  return razorpay;
+}
 
 /**
  * POST /api/billing/create-order
@@ -44,7 +54,8 @@ router.post('/create-order', authAny, async (req, res) => {
       }
     };
 
-    const order = await razorpay.orders.create(options);
+    const razorpayInstance = getRazorpayInstance();
+    const order = await razorpayInstance.orders.create(options);
 
     if (!order) {
       return res.status(500).json({ message: 'Failed to create Razorpay order' });
