@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { authAny } = require('../middleware/auth');
 const Patient = require('../models/Patient');
 const Visit = require('../models/Visit');
@@ -54,18 +55,28 @@ router.get('/visits', authAny, requirePatient, async (req, res) => {
       })
       .populate('departmentId', 'name');
     
+    // Get consultations to pull chief complaints
+    const consultations = await Consultation.find({ patientId: req.auth.id });
+    const consultationMap = {};
+    consultations.forEach(c => {
+      consultationMap[c.visitId.toString()] = c;
+    });
+
     // Transform to match frontend expectations
-    const transformedVisits = visits.map(visit => ({
-      _id: visit._id,
-      visitNumber: visit.tokenNumber, // token number is used as visit number
-      visitDate: visit.appointmentDate,
-      department: visit.departmentId,
-      doctor: visit.doctorId ? { name: visit.doctorId.user?.name || 'Not assigned' } : { name: 'Not assigned' },
-      status: visit.status,
-      visitType: 'Regular',
-      chiefComplaint: '',
-      vitalSigns: visit.vitals
-    }));
+    const transformedVisits = visits.map(visit => {
+      const consultation = consultationMap[visit._id.toString()];
+      return {
+        _id: visit._id,
+        visitNumber: visit.tokenNumber, // token number is used as visit number
+        visitDate: visit.appointmentDate,
+        department: visit.departmentId,
+        doctor: visit.doctorId ? { name: visit.doctorId.user?.name || 'Not assigned' } : { name: 'Not assigned' },
+        status: visit.status,
+        visitType: 'Regular',
+        chiefComplaint: consultation?.chiefComplaints || '',
+        vitalSigns: visit.vitals
+      };
+    });
     
     res.json(transformedVisits);
   } catch (err) {
@@ -86,11 +97,12 @@ router.get('/lab-reports', authAny, requirePatient, async (req, res) => {
       })
       .populate('patientId', 'firstName lastName opNumber');
     
-    // Extract all completed lab requests
+    // Extract all completed/verified lab requests
     const labReports = [];
     for (const consultation of consultations) {
       for (const labRequest of consultation.labRequests || []) {
-        if (labRequest.status === 'Completed') {
+        const status = (labRequest.status || '').toLowerCase();
+        if (status === 'completed' || status === 'verified') {
           labReports.push({
             _id: labRequest._id || Math.random().toString(),
             testName: labRequest.testName,
@@ -128,6 +140,64 @@ router.get('/lab-reports', authAny, requirePatient, async (req, res) => {
   }
 });
 
+// Get patient lab reports for a specific visit
+router.get('/visit/:visitId/lab-reports', authAny, requirePatient, async (req, res) => {
+  try {
+    const { visitId } = req.params;
+    
+    // Verify visit belongs to patient
+    const visit = await Visit.findOne({ _id: visitId, patientId: req.auth.id });
+    if (!visit) {
+      return res.status(403).json({ message: 'Visit not found or access denied' });
+    }
+
+    const consultations = await Consultation.find({ visitId: new mongoose.Types.ObjectId(visitId) })
+      .populate('visitId', 'tokenNumber appointmentDate')
+      .populate({
+        path: 'doctorId',
+        populate: { path: 'user', select: 'name' }
+      })
+      .populate('patientId', 'firstName lastName opNumber');
+    
+    const labReports = [];
+    for (const consultation of consultations) {
+      for (const labRequest of consultation.labRequests || []) {
+        // Case-insensitive status check for robustness
+        const status = (labRequest.status || '').toLowerCase();
+        if (status === 'completed' || status === 'verified') {
+          labReports.push({
+            _id: labRequest._id,
+            testName: labRequest.testName,
+            notes: labRequest.notes,
+            parameterResults: labRequest.parameterResults,
+            results: (labRequest.parameterResults || []).map(pr => ({
+              parameter: pr.parameterName,
+              value: pr.value,
+              unit: pr.unit,
+              normalRange: pr.referenceRange,
+              interpretation: pr.remarks
+            })),
+            overallRemarks: labRequest.overallRemarks,
+            summaryResult: labRequest.summaryResult,
+            status: labRequest.status,
+            updatedAt: labRequest.completedAt || consultation.updatedAt,
+            completedAt: labRequest.completedAt,
+            sampleCollectedAt: labRequest.sampleCollectedAt,
+            visit: consultation.visitId ? { visitNumber: consultation.visitId.tokenNumber, visitDate: consultation.visitId.appointmentDate } : null,
+            orderedBy: consultation.doctorId ? { name: consultation.doctorId.user?.name || 'N/A' } : { name: 'N/A' },
+            patient: consultation.patientId
+          });
+        }
+      }
+    }
+    
+    res.json(labReports);
+  } catch (err) {
+    console.error('Error fetching scoped lab reports:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get patient prescriptions
 router.get('/prescriptions', authAny, requirePatient, async (req, res) => {
   try {
@@ -138,7 +208,8 @@ router.get('/prescriptions', authAny, requirePatient, async (req, res) => {
         populate: { path: 'user', select: 'name' }
       })
       .populate('visitId', 'tokenNumber appointmentDate')
-      .populate('patientId', 'firstName lastName opNumber');
+      .populate('patientId', 'firstName lastName opNumber')
+      .populate('prescriptions.medicineId');
     
     // Format prescriptions data
     const prescriptionsData = consultations.map(consultation => ({
@@ -148,13 +219,17 @@ router.get('/prescriptions', authAny, requirePatient, async (req, res) => {
       visit: consultation.visitId ? { visitNumber: consultation.visitId.tokenNumber, visitDate: consultation.visitId.appointmentDate } : null,
       patient: consultation.patientId,
       prescriptions: (consultation.prescriptions || []).map(rx => ({
-        medicine: null, // We don't have detailed medicine info here
-        medicineName: rx.medicineName,
+        medicine: rx.medicineId ? {
+          name: rx.medicineId.name,
+          dosageForm: rx.medicineId.type,
+          strength: rx.medicineId.strength
+        } : null,
+        medicineName: rx.medicineName || (rx.medicineId ? rx.medicineId.name : 'N/A'),
         quantity: rx.quantity,
         dosage: rx.dosage,
         instructions: rx.instructions,
-        frequency: '', // Not stored in current model
-        duration: '' // Not stored in current model
+        frequency: rx.frequency || '',
+        duration: rx.duration || ''
       })),
       chiefComplaints: consultation.chiefComplaints,
       diagnosis: consultation.diagnosis,
@@ -162,6 +237,60 @@ router.get('/prescriptions', authAny, requirePatient, async (req, res) => {
     }));
     
     res.json(prescriptionsData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get patient prescription for a specific visit
+router.get('/visit/:visitId/prescription', authAny, requirePatient, async (req, res) => {
+  try {
+    const { visitId } = req.params;
+    
+    // Verify visit belongs to patient
+    const visit = await Visit.findOne({ _id: visitId, patientId: req.auth.id });
+    if (!visit) {
+      return res.status(403).json({ message: 'Visit not found or access denied' });
+    }
+
+    const consultation = await Consultation.findOne({ visitId })
+      .populate({
+        path: 'doctorId',
+        populate: { path: 'user', select: 'name' }
+      })
+      .populate('visitId', 'tokenNumber appointmentDate')
+      .populate('patientId', 'firstName lastName opNumber')
+      .populate('prescriptions.medicineId');
+    
+    if (!consultation) {
+      return res.json(null);
+    }
+
+    const prescriptionData = {
+      _id: consultation._id,
+      consultationDate: consultation.createdAt,
+      doctor: consultation.doctorId ? { name: consultation.doctorId.user?.name || 'N/A' } : { name: 'N/A' },
+      visit: consultation.visitId ? { visitNumber: consultation.visitId.tokenNumber, visitDate: consultation.visitId.appointmentDate } : null,
+      patient: consultation.patientId,
+      prescriptions: (consultation.prescriptions || []).map(rx => ({
+        medicine: rx.medicineId ? {
+          name: rx.medicineId.name,
+          dosageForm: rx.medicineId.type,
+          strength: rx.medicineId.strength
+        } : null,
+        medicineName: rx.medicineName || (rx.medicineId ? rx.medicineId.name : 'N/A'),
+        quantity: rx.quantity,
+        dosage: rx.dosage,
+        instructions: rx.instructions,
+        frequency: rx.frequency || '',
+        duration: rx.duration || ''
+      })),
+      diagnosis: consultation.diagnosis,
+      notes: consultation.treatmentPlan
+    };
+    
+    res.json(prescriptionData);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -199,6 +328,47 @@ router.get('/bills', authAny, requirePatient, async (req, res) => {
   }
 });
 
+// Get patient bill for a specific visit
+router.get('/visit/:visitId/bill', authAny, requirePatient, async (req, res) => {
+  try {
+    const { visitId } = req.params;
+    
+    // Verify visit belongs to patient
+    const visit = await Visit.findOne({ _id: visitId, patientId: req.auth.id });
+    if (!visit) {
+      return res.status(403).json({ message: 'Visit not found or access denied' });
+    }
+
+    const bill = await Bill.findOne({ visitId })
+      .populate('visitId', 'tokenNumber appointmentDate')
+      .populate('patientId', 'firstName lastName opNumber');
+    
+    if (!bill) {
+      return res.json(null);
+    }
+
+    const transformedBill = {
+      _id: bill._id,
+      billNumber: `BILL-${bill._id.toString().slice(-6).toUpperCase()}`,
+      billDate: bill.generatedAt || bill.createdAt,
+      visit: bill.visitId ? { visitNumber: bill.visitId.tokenNumber } : null,
+      patient: bill.patientId,
+      totalAmount: bill.totalAmount,
+      amountPaid: bill.paidAmount,
+      discount: 0,
+      paymentStatus: bill.status.toLowerCase(),
+      status: bill.status,
+      items: bill.items,
+      paymentMethod: bill.paymentMethod
+    };
+    
+    res.json(transformedBill);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get single visit details
 router.get('/visits/:visitId', authAny, requirePatient, async (req, res) => {
   try {
@@ -215,6 +385,9 @@ router.get('/visits/:visitId', authAny, requirePatient, async (req, res) => {
     if (!visit) {
       return res.status(404).json({ message: 'Visit not found' });
     }
+
+    // Get consultation for chief complaints
+    const consultation = await Consultation.findOne({ visitId: visit._id });
     
     // Transform to match frontend expectations
     const transformed = {
@@ -225,12 +398,14 @@ router.get('/visits/:visitId', authAny, requirePatient, async (req, res) => {
       doctor: visit.doctorId ? { name: visit.doctorId.user?.name || 'Not assigned' } : { name: 'Not assigned' },
       status: visit.status,
       visitType: 'Regular',
-      chiefComplaint: '',
+      chiefComplaint: consultation?.chiefComplaints || '',
+      diagnosis: consultation?.diagnosis || '',
+      treatmentPlan: consultation?.treatmentPlan || '',
       vitalSigns: visit.vitals ? {
         temperature: visit.vitals.temperature,
         bloodPressure: visit.vitals.bp,
-        pulseRate: visit.vitals.weight,
-        respiratoryRate: visit.vitals.oxygen
+        weight: visit.vitals.weight,
+        oxygen: visit.vitals.oxygen
       } : null
     };
     
@@ -263,8 +438,9 @@ router.get('/lab-reports/:reportId', authAny, requirePatient, async (req, res) =
     // Find the specific lab request
     const labRequest = consultation.labRequests.find(lr => lr._id.toString() === req.params.reportId);
     
-    if (!labRequest || labRequest.status !== 'Completed') {
-      return res.status(404).json({ message: 'Lab report not found' });
+    const status = (labRequest?.status || '').toLowerCase();
+    if (!labRequest || (status !== 'completed' && status !== 'verified')) {
+      return res.status(404).json({ message: 'Lab report not found or not available' });
     }
     
     res.json({
@@ -340,17 +516,32 @@ router.put('/profile', authAny, requirePatient, async (req, res) => {
     
     // Only allow updating specific fields
     const updateData = {};
-    if (email) updateData.email = email;
-    if (phone) updateData.phone = phone;
-    if (address) updateData.address = address;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
     
     const patient = await Patient.findByIdAndUpdate(
       req.auth.id,
-      updateData,
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     ).select('-passwordHash');
     
-    res.json(patient);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+    
+    res.json({
+      id: patient._id,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      opNumber: patient.opNumber,
+      phone: patient.phone,
+      email: patient.email,
+      dob: patient.dob,
+      age: patient.age,
+      gender: patient.gender,
+      address: patient.address
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -381,7 +572,8 @@ router.get('/lab-reports/:reportId/pdf', authAny, requirePatient, async (req, re
     // Find the specific lab request
     const labRequest = consultation.labRequests.find(lr => lr._id.toString() === reportId);
     
-    if (!labRequest || labRequest.status !== 'Completed') {
+    const status = (labRequest?.status || '').toLowerCase();
+    if (!labRequest || (status !== 'completed' && status !== 'verified')) {
       return res.status(404).json({ message: 'Lab report not available' });
     }
     

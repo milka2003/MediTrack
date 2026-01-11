@@ -5,6 +5,8 @@ const prescriptionSchema = new mongoose.Schema({
   medicineName: String, // denormalized for quick display
   quantity: { type: Number, default: 1 },
   dosage: String,
+  frequency: String,
+  duration: String,
   instructions: String
 }, { _id: false });
 

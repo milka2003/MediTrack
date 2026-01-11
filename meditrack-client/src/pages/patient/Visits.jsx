@@ -18,27 +18,30 @@ import {
   DialogContent,
   DialogActions,
   Grid,
-  Divider
+  Divider,
+  Stack
 } from '@mui/material';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 
-// Format date
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
     month: 'short',
-    day: 'numeric'
+    year: 'numeric'
   });
 };
 
 function Visits() {
+  const { selectedVisitId, setSelectedVisitId } = useOutletContext();
+  const navigate = useNavigate();
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedVisit, setSelectedVisit] = useState(null);
+  const [selectedVisitDetails, setSelectedVisitDetails] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -67,17 +70,23 @@ function Visits() {
       const response = await axios.get(`${API_URL}/patient-portal/visits/${visitId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSelectedVisit(response.data);
+      setSelectedVisitDetails(response.data);
       setDialogOpen(true);
     } catch (err) {
       console.error(err);
     }
   };
 
+  const handleSelectVisit = (visitId) => {
+    setSelectedVisitId(visitId);
+    // Optionally redirect to prescriptions or lab reports
+    // navigate('/patient-portal/prescriptions');
+  };
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
   };
-
+  
   const getStatusChip = (status) => {
     let color = 'default';
     switch (status) {
@@ -134,20 +143,35 @@ function Visits() {
             </TableHead>
             <TableBody>
               {visits.map((visit) => (
-                <TableRow key={visit._id} hover>
+                <TableRow 
+                  key={visit._id} 
+                  hover 
+                  selected={selectedVisitId === visit._id}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>{visit.visitNumber}</TableCell>
                   <TableCell>{formatDate(visit.visitDate)}</TableCell>
                   <TableCell>{visit.department?.name || 'N/A'}</TableCell>
                   <TableCell>{visit.doctor?.name || 'Not assigned'}</TableCell>
                   <TableCell>{getStatusChip(visit.status)}</TableCell>
                   <TableCell>
-                    <Button 
-                      size="small" 
-                      variant="outlined"
-                      onClick={() => handleViewDetails(visit._id)}
-                    >
-                      View Details
-                    </Button>
+                    <Stack direction="row" spacing={1}>
+                      <Button 
+                        size="small" 
+                        variant="outlined"
+                        onClick={() => handleViewDetails(visit._id)}
+                      >
+                        Details
+                      </Button>
+                      <Button 
+                        size="small" 
+                        variant={selectedVisitId === visit._id ? "contained" : "outlined"}
+                        color={selectedVisitId === visit._id ? "success" : "primary"}
+                        onClick={() => handleSelectVisit(visit._id)}
+                      >
+                        {selectedVisitId === visit._id ? "Selected" : "Select"}
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -162,15 +186,15 @@ function Visits() {
           Visit Details
         </DialogTitle>
         <DialogContent dividers>
-          {selectedVisit && (
+          {selectedVisitDetails && (
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Visit Number</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.visitNumber}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.visitNumber}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Visit Date</Typography>
-                <Typography variant="body1" gutterBottom>{formatDate(selectedVisit.visitDate)}</Typography>
+                <Typography variant="body1" gutterBottom>{formatDate(selectedVisitDetails.visitDate)}</Typography>
               </Grid>
               
               <Grid item xs={12}>
@@ -179,11 +203,11 @@ function Visits() {
               
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Department</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.department?.name || 'N/A'}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.department?.name || 'N/A'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Doctor</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.doctor?.name || 'Not assigned'}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.doctor?.name || 'Not assigned'}</Typography>
               </Grid>
               
               <Grid item xs={12}>
@@ -192,11 +216,11 @@ function Visits() {
               
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.status}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.status}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Visit Type</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.visitType || 'Regular'}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.visitType || 'Regular'}</Typography>
               </Grid>
               
               <Grid item xs={12}>
@@ -205,10 +229,20 @@ function Visits() {
               
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="text.secondary">Chief Complaint</Typography>
-                <Typography variant="body1" gutterBottom>{selectedVisit.chiefComplaint || 'Not recorded'}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.chiefComplaint || 'Not recorded'}</Typography>
               </Grid>
               
-              {selectedVisit.vitalSigns && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">Diagnosis</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.diagnosis || 'Not specified'}</Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">Treatment Plan / Notes</Typography>
+                <Typography variant="body1" gutterBottom>{selectedVisitDetails.treatmentPlan || 'Not specified'}</Typography>
+              </Grid>
+              
+              {selectedVisitDetails.vitalSigns && (
                 <>
                   <Grid item xs={12}>
                     <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, color: '#0D47A1' }}>Vital Signs</Typography>
@@ -217,25 +251,25 @@ function Visits() {
                   <Grid item xs={12} md={3}>
                     <Typography variant="subtitle2" color="text.secondary">Temperature</Typography>
                     <Typography variant="body1" gutterBottom>
-                      {selectedVisit.vitalSigns.temperature ? `${selectedVisit.vitalSigns.temperature} °C` : 'Not recorded'}
+                      {selectedVisitDetails.vitalSigns.temperature ? `${selectedVisitDetails.vitalSigns.temperature} °C` : 'Not recorded'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={3}>
                     <Typography variant="subtitle2" color="text.secondary">Blood Pressure</Typography>
                     <Typography variant="body1" gutterBottom>
-                      {selectedVisit.vitalSigns.bloodPressure || 'Not recorded'}
+                      {selectedVisitDetails.vitalSigns.bloodPressure || 'Not recorded'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={3}>
-                    <Typography variant="subtitle2" color="text.secondary">Pulse Rate</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">Weight</Typography>
                     <Typography variant="body1" gutterBottom>
-                      {selectedVisit.vitalSigns.pulseRate ? `${selectedVisit.vitalSigns.pulseRate} bpm` : 'Not recorded'}
+                      {selectedVisitDetails.vitalSigns.weight || 'Not recorded'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={3}>
-                    <Typography variant="subtitle2" color="text.secondary">Respiratory Rate</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">Oxygen (SpO2)</Typography>
                     <Typography variant="body1" gutterBottom>
-                      {selectedVisit.vitalSigns.respiratoryRate ? `${selectedVisit.vitalSigns.respiratoryRate} breaths/min` : 'Not recorded'}
+                      {selectedVisitDetails.vitalSigns.oxygen || 'Not recorded'}
                     </Typography>
                   </Grid>
                 </>
@@ -244,6 +278,18 @@ function Visits() {
           )}
         </DialogContent>
         <DialogActions>
+          {selectedVisitDetails && (
+             <Button 
+                variant="contained" 
+                onClick={() => {
+                  handleSelectVisit(selectedVisitDetails._id);
+                  handleCloseDialog();
+                }}
+                disabled={selectedVisitId === selectedVisitDetails._id}
+              >
+                {selectedVisitId === selectedVisitDetails._id ? "Already Selected" : "Select this Visit"}
+              </Button>
+          )}
           <Button onClick={handleCloseDialog}>Close</Button>
         </DialogActions>
       </Dialog>

@@ -22,33 +22,34 @@ import {
   Stack
 } from '@mui/material';
 import PaymentIcon from '@mui/icons-material/Payment';
+import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import RazorpayCheckout from '../../components/RazorpayCheckout';
 
-// Format date
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
   });
 };
 
-// Format currency
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
+    currency: 'INR'
   }).format(amount);
 };
 
+const safeText = (text) => {
+  if (text === null || text === undefined) return 'N/A';
+  return String(text);
+};
+
 function Bills() {
+  const { selectedVisitId } = useOutletContext();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,17 +59,24 @@ function Bills() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
-    fetchBills();
-  }, []);
+    if (selectedVisitId) {
+      fetchBills();
+    } else {
+      setBills([]);
+      setLoading(false);
+    }
+  }, [selectedVisitId]);
 
   const fetchBills = async () => {
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/patient-portal/bills`, {
+      const response = await axios.get(`${API_URL}/patient-portal/visit/${selectedVisitId}/bill`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setBills(response.data);
+      // Backend returns a single object or null, wrap in array for consistency
+      setBills(response.data ? [response.data] : []);
     } catch (err) {
       setError('Failed to load bills. Please try again.');
       console.error(err);
@@ -150,13 +158,13 @@ function Bills() {
     
     // Bill info
     doc.setFontSize(11);
-    doc.text(`Invoice #: ${selectedBill.billNumber}`, 14, 40);
-    doc.text(`Date: ${formatDate(selectedBill.billDate)}`, 14, 48);
-    doc.text(`Visit #: ${selectedBill.visit?.visitNumber || 'N/A'}`, 14, 56);
+    doc.text(`Invoice #: ${safeText(selectedBill.billNumber)}`, 14, 40);
+    doc.text(`Date: ${safeText(formatDate(selectedBill.billDate))}`, 14, 48);
+    doc.text(`Visit #: ${safeText(selectedBill.visit?.visitNumber)}`, 14, 56);
     
     // Patient info
-    doc.text(`Patient: ${selectedBill.patient?.firstName} ${selectedBill.patient?.lastName}`, 140, 40, { align: 'right' });
-    doc.text(`OP Number: ${selectedBill.patient?.opNumber}`, 140, 48, { align: 'right' });
+    doc.text(`Patient: ${safeText(selectedBill.patient?.firstName)} ${safeText(selectedBill.patient?.lastName)}`, 140, 40, { align: 'right' });
+    doc.text(`OP Number: ${safeText(selectedBill.patient?.opNumber)}`, 140, 48, { align: 'right' });
     
     // Bill items
     doc.setFontSize(12);
@@ -237,7 +245,9 @@ function Bills() {
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>Bills & Payments</Typography>
       
       {bills.length === 0 ? (
-        <Alert severity="info">You don't have any bills available yet.</Alert>
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          No bills found for this visit. Please select another visit from <strong>Visit History</strong> to view other records.
+        </Alert>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>

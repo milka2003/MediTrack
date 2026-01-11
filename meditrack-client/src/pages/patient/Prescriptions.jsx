@@ -23,23 +23,26 @@ import {
   AccordionDetails
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// Format date
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
   });
 };
 
+const safeText = (text) => {
+  if (text === null || text === undefined) return 'N/A';
+  return String(text);
+};
+
 function Prescriptions() {
+  const { selectedVisitId } = useOutletContext();
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,17 +50,24 @@ function Prescriptions() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchPrescriptions();
-  }, []);
+    if (selectedVisitId) {
+      fetchPrescriptions();
+    } else {
+      setConsultations([]);
+      setLoading(false);
+    }
+  }, [selectedVisitId]);
 
   const fetchPrescriptions = async () => {
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/patient-portal/prescriptions`, {
+      const response = await axios.get(`${API_URL}/patient-portal/visit/${selectedVisitId}/prescription`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setConsultations(response.data);
+      // Backend returns a single object or null, wrap in array for consistency
+      setConsultations(response.data ? [response.data] : []);
     } catch (err) {
       setError('Failed to load prescriptions. Please try again.');
       console.error(err);
@@ -91,18 +101,18 @@ function Prescriptions() {
     
     // Patient and consultation info
     doc.setFontSize(11);
-    doc.text(`Patient: ${selectedConsultation.patient?.firstName} ${selectedConsultation.patient?.lastName}`, 14, 40);
-    doc.text(`OP Number: ${selectedConsultation.patient?.opNumber}`, 14, 48);
-    doc.text(`Visit #: ${selectedConsultation.visit?.visitNumber}`, 14, 56);
-    doc.text(`Date: ${formatDate(selectedConsultation.consultationDate)}`, 14, 64);
-    doc.text(`Doctor: ${selectedConsultation.doctor?.name || 'N/A'}`, 14, 72);
+    doc.text(`Patient: ${safeText(selectedConsultation.patient?.firstName)} ${safeText(selectedConsultation.patient?.lastName)}`, 14, 40);
+    doc.text(`OP Number: ${safeText(selectedConsultation.patient?.opNumber)}`, 14, 48);
+    doc.text(`Visit #: ${safeText(selectedConsultation.visit?.visitNumber)}`, 14, 56);
+    doc.text(`Date: ${safeText(formatDate(selectedConsultation.consultationDate))}`, 14, 64);
+    doc.text(`Doctor: ${safeText(selectedConsultation.doctor?.name)}`, 14, 72);
     
     // Diagnosis
     if (selectedConsultation.diagnosis) {
       doc.setFontSize(12);
       doc.text('Diagnosis:', 14, 85);
       doc.setFontSize(10);
-      doc.text(selectedConsultation.diagnosis, 14, 93);
+      doc.text(safeText(selectedConsultation.diagnosis), 14, 93);
     }
     
     // Medications
@@ -112,15 +122,18 @@ function Prescriptions() {
     const tableData = [];
     if (selectedConsultation.prescriptions && selectedConsultation.prescriptions.length > 0) {
       selectedConsultation.prescriptions.forEach(prescription => {
-        const medicineName = prescription.medicine?.name || 'N/A';
-        const dosage = `${prescription.medicine?.dosageForm || ''} ${prescription.medicine?.strength || ''}`;
+        const medicineName = prescription.medicine?.name || prescription.medicineName || 'N/A';
+        const dosageForm = prescription.medicine?.dosageForm || '';
+        const strength = prescription.medicine?.strength || '';
+        const formStrength = dosageForm && strength ? `${dosageForm} ${strength}` : (dosageForm || strength || '');
+        
         tableData.push([
-          medicineName,
-          dosage,
-          prescription.dosage || '',
-          prescription.frequency || '',
-          prescription.duration || '',
-          prescription.instructions || ''
+          safeText(medicineName),
+          safeText(formStrength),
+          safeText(prescription.dosage),
+          safeText(prescription.frequency),
+          safeText(prescription.duration),
+          safeText(prescription.instructions)
         ]);
       });
     }
@@ -171,7 +184,9 @@ function Prescriptions() {
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>Prescriptions</Typography>
       
       {consultations.length === 0 ? (
-        <Alert severity="info">You don't have any prescriptions available yet.</Alert>
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          No prescriptions found for this visit. Please select another visit from <strong>Visit History</strong> to view other records.
+        </Alert>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>
@@ -268,9 +283,9 @@ function Prescriptions() {
                     <Accordion key={index} sx={{ mb: 1 }}>
                       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography>
-                          {prescription.medicine?.name || 'Medication'} 
-                          {prescription.medicine?.dosageForm && prescription.medicine?.strength && 
-                            ` (${prescription.medicine.dosageForm} ${prescription.medicine.strength})`}
+                          {prescription.medicine?.name || prescription.medicineName || 'Medication'} 
+                          {(prescription.medicine?.dosageForm || prescription.medicine?.strength) && 
+                            ` (${prescription.medicine?.dosageForm || ''} ${prescription.medicine?.strength || ''})`.trim()}
                         </Typography>
                       </AccordionSummary>
                       <AccordionDetails>

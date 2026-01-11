@@ -20,57 +20,44 @@ import {
   Divider,
   Chip
 } from '@mui/material';
+import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import { jsPDF } from 'jspdf';
 
-// Format date
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
   });
 };
 
-// Format date with time
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  return new Date(dateString).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
   });
 };
 
-// Calculate age from DOB
 const calculateAge = (dob) => {
   if (!dob) return 'N/A';
-  const today = new Date();
   const birthDate = new Date(dob);
+  if (isNaN(birthDate.getTime())) return 'N/A';
+  const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age.toString();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
 };
 
-// Safe text conversion for jsPDF
-const safeText = (value) => {
-  if (value === null || value === undefined) return 'N/A';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  if (Array.isArray(value)) return value;
-  return String(value);
+const safeText = (text) => {
+  if (text === null || text === undefined) return 'N/A';
+  return String(text);
 };
 
 function LabReports() {
+  const { selectedVisitId } = useOutletContext();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,14 +65,21 @@ function LabReports() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    if (selectedVisitId) {
+      fetchReports();
+    } else {
+      setReports([]);
+      setLoading(false);
+    }
+  }, [selectedVisitId]);
 
   const fetchReports = async () => {
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/patient-portal/lab-reports`, {
+      // Use visit-scoped API
+      const response = await axios.get(`${API_URL}/patient-portal/visit/${selectedVisitId}/lab-reports`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReports(response.data);
@@ -200,7 +194,7 @@ function LabReports() {
     doc.setFont(undefined, 'normal');
     doc.text('Age:', rightCol, yPos);
     doc.setFont(undefined, 'bold');
-    doc.text(safeText(calculateAge(selectedReport.patient?.dob)) + ' years', rightCol + 15, yPos);
+    doc.text(String(calculateAge(selectedReport.patient?.dob)) + ' years', rightCol + 15, yPos);
     
     doc.setFont(undefined, 'normal');
     doc.text('Phone:', rightCol, yPos + lineHeight);
@@ -495,7 +489,9 @@ function LabReports() {
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>Lab Reports</Typography>
       
       {reports.length === 0 ? (
-        <Alert severity="info">You don't have any lab reports available yet.</Alert>
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          No lab reports found for this visit. Please select another visit from <strong>Visit History</strong> to view other reports.
+        </Alert>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>

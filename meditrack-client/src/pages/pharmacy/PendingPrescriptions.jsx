@@ -65,8 +65,11 @@ export default function PendingPrescriptions() {
                         <ul style={{ margin: 0 }}>
                           {v.prescriptions.map((p, i) => (
                             <li key={i}>
-                              {p.medicineName || p.medicineId} — Qty: {p.quantity || 1} {p.dosage ? `— ${p.dosage}` : ''}
-                              {p.instructions ? ` — ${p.instructions}` : ''}
+                              <strong>{p.medicineName || p.medicineId}</strong> — Qty: {p.quantity || 1} 
+                              {p.dosage ? ` — Dosage: ${p.dosage}` : ''}
+                              {p.frequency ? ` — Freq: ${p.frequency}` : ''}
+                              {p.duration ? ` — Duration: ${p.duration}` : ''}
+                              {p.instructions ? ` — Inst: ${p.instructions}` : ''}
                             </li>
                           ))}
                         </ul>

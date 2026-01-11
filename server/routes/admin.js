@@ -279,6 +279,10 @@ router.post('/shift-templates', authAny, requireStaff(['Admin']), async (req, re
       return res.status(400).json({ message: 'Name, start time, and end time are required' });
     }
 
+    if (startTime === endTime) {
+      return res.status(400).json({ message: 'Start time and end time cannot be the same' });
+    }
+
     const shiftTemplate = await ShiftTemplate.create({
       name,
       startTime,
@@ -313,6 +317,22 @@ router.put('/shift-templates/:id', authAny, requireStaff(['Admin']), async (req,
   try {
     const { id } = req.params;
     const { name, startTime, endTime, isActive } = req.body;
+
+    if (startTime !== undefined && endTime !== undefined) {
+      if (startTime === endTime) {
+        return res.status(400).json({ message: 'Start time and end time cannot be the same' });
+      }
+    } else if (startTime !== undefined || endTime !== undefined) {
+      // Check against existing values if only one is being updated
+      const existing = await ShiftTemplate.findById(id);
+      if (existing) {
+        const newStart = startTime !== undefined ? startTime : existing.startTime;
+        const newEnd = endTime !== undefined ? endTime : existing.endTime;
+        if (newStart === newEnd) {
+          return res.status(400).json({ message: 'Start time and end time cannot be the same' });
+        }
+      }
+    }
 
     const update = {};
     if (name !== undefined) update.name = name;
@@ -368,6 +388,40 @@ router.post('/staff-shift-mappings', authAny, requireStaff(['Admin']), async (re
     if (!staffId || !staffName || !role || !shiftTemplateId || !effectiveFrom) {
       return res.status(400).json({
         message: 'staffId, staffName, role, shiftTemplateId, and effectiveFrom are required'
+      });
+    }
+
+    const fromDate = new Date(effectiveFrom);
+    const toDate = effectiveTo ? new Date(effectiveTo) : null;
+
+    if (toDate && toDate < fromDate) {
+      return res.status(400).json({ message: 'Effective To date cannot be before Effective From date' });
+    }
+
+    // Overlap validation
+    const overlappingMapping = await StaffShiftMapping.findOne({
+      staffId,
+      isActive: true,
+      $or: [
+        {
+          // Existing mapping encompasses the new start date
+          effectiveFrom: { $lte: fromDate },
+          $or: [
+            { effectiveTo: null },
+            { effectiveTo: { $gte: fromDate } }
+          ]
+        },
+        {
+          // Existing mapping starts within the new range
+          effectiveFrom: { $gte: fromDate },
+          ...(toDate ? { effectiveFrom: { $lte: toDate } } : {})
+        }
+      ]
+    });
+
+    if (overlappingMapping) {
+      return res.status(400).json({ 
+        message: `Staff already has an active shift mapping overlapping with this period (${overlappingMapping.staffName})` 
       });
     }
 

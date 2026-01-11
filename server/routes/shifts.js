@@ -14,6 +14,10 @@ router.post('/shifts', authAny, requireStaff(['Admin']), async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
+    if (startTime === endTime) {
+      return res.status(400).json({ message: 'Start time and end time cannot be the same' });
+    }
+
     const normalizeRole = (userRole) => {
       if (userRole === 'Lab') return 'Lab Technician';
       return userRole;

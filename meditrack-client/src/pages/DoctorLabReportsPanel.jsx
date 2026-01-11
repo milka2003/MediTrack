@@ -47,30 +47,30 @@ export default function DoctorLabReportsPanel() {
   };
 
   return (
-    <Box>
+    <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#0d47a1' }}>Lab Reports</Typography>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <TextField size="small" label="Search patient/test/op" value={q} onChange={(e) => setQ(e.target.value)} />
-          <TextField size="small" label="Test name or ID" value={test} onChange={(e) => setTest(e.target.value)} />
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid #e0e6ed' }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+          <TextField size="small" label="Search patient/test/op" value={q} onChange={(e) => setQ(e.target.value)} sx={{ flex: 1 }} />
+          <TextField size="small" label="Test name or ID" value={test} onChange={(e) => setTest(e.target.value)} sx={{ flex: 1 }} />
           <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          <Button variant="outlined" onClick={() => load(1)} disabled={loading}>Search</Button>
+          <Button variant="contained" onClick={() => load(1)} disabled={loading} sx={{ minWidth: 100 }}>Search</Button>
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 2 }}>
+      <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e0e6ed' }}>
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Patient</TableCell>
-                <TableCell>OP No.</TableCell>
-                <TableCell>Test</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">View</TableCell>
+              <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Patient</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>OP No.</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Test</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>View</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

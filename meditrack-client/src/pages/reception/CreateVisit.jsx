@@ -176,7 +176,7 @@ export default function CreateVisit() {
               required
             />
 
-            {schedule.length > 0 ? (
+            {schedule.length > 0 && (
               <Box>
                 <Typography variant="subtitle2">Available Slots</Typography>
                 {schedule.map((s, i) => (
@@ -185,13 +185,9 @@ export default function CreateVisit() {
                   </div>
                 ))}
               </Box>
-            ) : (
-              form.doctor && form.date && (
-                <Typography color="warning.main">Doctor not available on selected day.</Typography>
-              )
             )}
 
-            <Button type="submit" variant="contained" disabled={form.doctor && form.date && schedule.length === 0}>
+            <Button type="submit" variant="contained">
               Book Appointment
             </Button>
           </Stack>

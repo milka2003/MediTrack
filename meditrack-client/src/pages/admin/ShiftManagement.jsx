@@ -128,6 +128,11 @@ function ShiftManagement() {
       return;
     }
 
+    if (templateStartTime === templateEndTime) {
+      setMessage("❌ Start time and end time cannot be the same");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       await axios.post(
@@ -175,6 +180,11 @@ function ShiftManagement() {
 
     if (!selectedStaff || !selectedTemplateId || !effectiveFrom) {
       setMessage("❌ Staff, Shift Template, and Effective From date are required");
+      return;
+    }
+
+    if (effectiveTo && new Date(effectiveTo) < new Date(effectiveFrom)) {
+      setMessage("❌ Effective To date cannot be before Effective From date");
       return;
     }
 

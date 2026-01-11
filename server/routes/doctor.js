@@ -2,7 +2,10 @@ const express = require('express');
 const Visit = require('../models/Visit');
 const Doctor = require('../models/Doctor');
 const Consultation = require('../models/Consultation');
+const DoctorAvailability = require('../models/DoctorAvailability');
 const { authAny, requireStaff } = require('../middleware/auth');
+const { getActiveShiftTemplate } = require('../utils/shiftResolver');
+const StaffShiftMapping = require('../models/StaffShiftMapping');
 
 const router = express.Router();
 
@@ -64,6 +67,8 @@ router.post('/consultations/:visitId', authAny, requireStaff(['Doctor']), async 
           medicineName: p.medicineName || (typeof p.medicine === 'string' ? p.medicine : ''),
           quantity: typeof p.quantity === 'number' ? p.quantity : 1,
           dosage: p.dosage || '',
+          frequency: p.frequency || '',
+          duration: p.duration || '',
           instructions: p.instructions || ''
         };
         const idCandidate = p.medicineId || p.medicineId === '' ? p.medicineId : undefined;
@@ -286,6 +291,124 @@ router.get('/visits/:id', authAny, requireStaff(['Doctor']), async (req, res) =>
 
   if (!visit) return res.status(404).json({ message: 'Visit not found' });
   res.json({ visit });
+});
+
+// Helper to check if doctor is on active shift
+const isOnActiveShiftHelper = async (doctorUserId) => {
+  const activeShift = await getActiveShiftTemplate();
+  if (!activeShift) return false;
+
+  const now = new Date();
+  const mapping = await StaffShiftMapping.findOne({
+    staffId: doctorUserId,
+    shiftTemplateId: activeShift._id,
+    role: 'Doctor',
+    isActive: true,
+    effectiveFrom: { $lte: now },
+    $or: [
+      { effectiveTo: null },
+      { effectiveTo: { $gte: now } }
+    ]
+  });
+
+  return !!mapping;
+};
+
+// GET /api/doctor/:doctorId/availability
+router.get('/:doctorId/availability', authAny, requireStaff(['Doctor', 'Admin', 'Nurse']), async (req, res) => {
+  try {
+    let { doctorId } = req.params;
+    if (doctorId === 'me') {
+      const doctor = await Doctor.findOne({ user: req.auth.id });
+      if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
+      doctorId = doctor._id;
+    }
+
+    const doctor = await Doctor.findById(doctorId).populate('user');
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    let availability = await DoctorAvailability.findOne({ doctorId });
+    const onShift = await isOnActiveShiftHelper(doctor.user._id);
+
+    if (!availability) {
+      availability = new DoctorAvailability({
+        doctorId,
+        availabilityStatus: onShift ? 'Available' : 'Unavailable'
+      });
+      await availability.save();
+    } else {
+      // Sync with shift status if it's currently Unavailable but doctor is on shift
+      // OR if doctor is off shift but status is not Unavailable
+      if (!onShift && availability.availabilityStatus !== 'Unavailable') {
+        availability.availabilityStatus = 'Unavailable';
+        await availability.save();
+      } else if (onShift && availability.availabilityStatus === 'Unavailable') {
+        availability.availabilityStatus = 'Available';
+        await availability.save();
+      }
+    }
+
+    res.json({ availability });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// POST /api/doctor/:doctorId/availability
+router.post('/:doctorId/availability', authAny, requireStaff(['Doctor']), async (req, res) => {
+  try {
+    let { doctorId } = req.params;
+    const { status, reason } = req.body;
+
+    if (doctorId === 'me') {
+      const doctor = await Doctor.findOne({ user: req.auth.id });
+      if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
+      doctorId = doctor._id;
+    }
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    // Validate transitions
+    const validStatuses = ['Available', 'Busy', 'OnBreak', 'Unavailable'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    let availability = await DoctorAvailability.findOne({ doctorId });
+    if (!availability) {
+      availability = new DoctorAvailability({ doctorId });
+    }
+
+    const currentStatus = availability.availabilityStatus;
+
+    // Allowed transitions:
+    // Available -> OnBreak
+    // OnBreak -> Available
+    // Available -> Busy
+    // Busy -> Available
+    
+    const allowed = (
+      (currentStatus === 'Available' && (status === 'OnBreak' || status === 'Busy' || status === 'Unavailable')) ||
+      (currentStatus === 'OnBreak' && status === 'Available') ||
+      (currentStatus === 'Busy' && status === 'Available') ||
+      (currentStatus === 'Unavailable' && status === 'Available')
+    );
+
+    if (!allowed && currentStatus !== status) {
+      return res.status(400).json({ 
+        message: `Invalid transition from ${currentStatus} to ${status}` 
+      });
+    }
+
+    availability.availabilityStatus = status;
+    if (reason) availability.reason = reason;
+    await availability.save();
+
+    res.json({ message: 'Availability updated', availability });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router;

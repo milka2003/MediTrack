@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
+const Visit = require('../models/Visit');
 const { signStaffToken, signPatientToken } = require('../utils/jwt');
 const { authAny, requireStaff } = require('../middleware/auth');
 
@@ -73,6 +74,12 @@ router.post('/patient-login', async (req, res) => {
     patient.lastLogin = new Date();
     await patient.save();
 
+    // Fetch active visit (latest that is not VisitClosed)
+    const activeVisit = await Visit.findOne({ 
+      patientId: patient._id, 
+      status: { $ne: 'VisitClosed' } 
+    }).sort({ createdAt: -1 });
+
     const token = signPatientToken(patient);
     res.json({
       token,
@@ -80,7 +87,8 @@ router.post('/patient-login', async (req, res) => {
         id: patient._id,
         name: patient.firstName + ' ' + patient.lastName,
         opNumber: patient.opNumber,
-        role: 'Patient'
+        role: 'Patient',
+        currentVisitId: activeVisit ? activeVisit._id : null
       }
     });
   } catch (err) {

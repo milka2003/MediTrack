@@ -28,10 +28,6 @@ export default function Doctors() {
     consultationFee: "",
   });
 
-  const [schedule, setSchedule] = useState([
-    { day: "", startTime: "", endTime: "", maxPatients: "" },
-  ]);
-
   const [doctors, setDoctors] = useState([]);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -78,29 +74,15 @@ export default function Doctors() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ===== Schedule handlers =====
-  const handleScheduleChange = (index, field, value) => {
-    const newSchedule = [...schedule];
-    newSchedule[index][field] = value;
-    setSchedule(newSchedule);
-  };
-
-  const addScheduleRow = () => {
-    setSchedule([
-      ...schedule,
-      { day: "", startTime: "", endTime: "", maxPatients: "" },
-    ]);
-  };
-
   // ===== Form Submit =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        await api.put(`/admin/doctors/${editingId}`, { ...form, schedule });
+        await api.put(`/admin/doctors/${editingId}`, { ...form });
         setMessage("✅ Doctor updated successfully!");
       } else {
-        await api.post("/admin/doctors", { ...form, schedule });
+        await api.post("/admin/doctors", { ...form });
         setMessage("✅ Doctor added successfully!");
       }
 
@@ -123,16 +105,6 @@ export default function Doctors() {
       registrationNumber: doc.registrationNumber || "",
       consultationFee: doc.consultationFee || "",
     });
-    setSchedule(
-      doc.schedule.length
-        ? doc.schedule.map((s) => ({
-            day: s.day,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            maxPatients: s.maxPatients || "",
-          }))
-        : [{ day: "", startTime: "", endTime: "", maxPatients: "" }]
-    );
     setEditingId(doc._id);
   };
 
@@ -154,7 +126,6 @@ export default function Doctors() {
       registrationNumber: "",
       consultationFee: "",
     });
-    setSchedule([{ day: "", startTime: "", endTime: "", maxPatients: "" }]);
     setEditingId(null);
   };
 
@@ -258,66 +229,6 @@ export default function Doctors() {
               onChange={handleChange}
             />
 
-            {/* Schedule Section */}
-            <Typography variant="subtitle1">Schedule</Typography>
-            {schedule.map((s, index) => (
-              <Stack direction="row" spacing={2} key={index}>
-                <TextField
-                  select
-                  label="Day"
-                  value={s.day}
-                  onChange={(e) =>
-                    handleScheduleChange(index, "day", e.target.value)
-                  }
-                  sx={{ minWidth: 120 }}
-                >
-                  {[
-                    "Monday",
-                    "Tuesday",
-                    "Wednesday",
-                    "Thursday",
-                    "Friday",
-                    "Saturday",
-                    "Sunday",
-                  ].map((d) => (
-                    <MenuItem key={d} value={d}>
-                      {d}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  type="time"
-                  label="Start"
-                  value={s.startTime}
-                  onChange={(e) =>
-                    handleScheduleChange(index, "startTime", e.target.value)
-                  }
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  type="time"
-                  label="End"
-                  value={s.endTime}
-                  onChange={(e) =>
-                    handleScheduleChange(index, "endTime", e.target.value)
-                  }
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  type="number"
-                  label="Max Patients"
-                  value={s.maxPatients}
-                  onChange={(e) =>
-                    handleScheduleChange(index, "maxPatients", e.target.value)
-                  }
-                  sx={{ width: 120 }}
-                />
-              </Stack>
-            ))}
-            <Button onClick={addScheduleRow} variant="outlined">
-              + Add Row
-            </Button>
-
             <Stack direction="row" spacing={2}>
               <Button type="submit" variant="contained">
                 {editingId ? "Update Doctor" : "Add Doctor"}
@@ -345,7 +256,6 @@ export default function Doctors() {
               <TableCell>Experience</TableCell>
               <TableCell>Reg. No</TableCell>
               <TableCell>Fee</TableCell>
-              <TableCell>Schedule</TableCell>
               <TableCell align="center">Active</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -360,14 +270,6 @@ export default function Doctors() {
                 <TableCell>{doc.experience}</TableCell>
                 <TableCell>{doc.registrationNumber}</TableCell>
                 <TableCell>{doc.consultationFee || "-"}</TableCell>
-                <TableCell>
-                  {doc.schedule?.map((s, i) => (
-                    <div key={i}>
-                      {s.day}: {s.startTime} - {s.endTime}{" "}
-                      {s.maxPatients ? `(Max: ${s.maxPatients})` : ""}
-                    </div>
-                  ))}
-                </TableCell>
                 <TableCell align="center">
                   <Switch
                     checked={doc.active}
@@ -390,7 +292,7 @@ export default function Doctors() {
             ))}
             {doctors.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10}>No doctors yet.</TableCell>
+                <TableCell colSpan={9}>No doctors yet.</TableCell>
               </TableRow>
             )}
           </TableBody>

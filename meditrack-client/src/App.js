@@ -18,6 +18,8 @@ import LabTestMaster from "./pages/lab/LabTestMaster";
 import PendingTestsReport from "./pages/lab/PendingTestsReport";
 import CompletedTestsReport from "./pages/lab/CompletedTestsReport";
 import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorQueueBoard from "./pages/DoctorQueueBoard";
+import PatientQueueBoard from "./pages/PatientQueueBoard";
 import NurseDashboard from "./pages/NurseDashboard";
 import BillingDashboard from "./pages/BillingDashboard";
 import ChangePassword from "./pages/ChangePassword";
@@ -98,6 +100,8 @@ function App() {
         <Route path="/lab-dashboard/reports/pending" element={<PendingTestsReport />} />
         <Route path="/lab-dashboard/reports/completed" element={<CompletedTestsReport />} />
         <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+        <Route path="/doctor-queue-board" element={<DoctorQueueBoard />} />
+        <Route path="/patient-queue-board" element={<PatientQueueBoard />} />
         <Route path="/nurse-dashboard" element={<NurseDashboard />} />
         <Route path="/billing-dashboard" element={<BillingDashboard />} />
         <Route path="/ml-dashboard" element={<ProtectedRoute roles={["Lab"]}><MLDashboard /></ProtectedRoute>} />

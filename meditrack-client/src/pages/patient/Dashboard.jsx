@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Drawer, 
@@ -11,9 +11,12 @@ import {
   AppBar, 
   Button, 
   Avatar, 
-  Stack 
+  Stack,
+  Tooltip,
+  Alert,
+  Chip
 } from '@mui/material';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 
 // Icons
 import PersonIcon from '@mui/icons-material/Person';
@@ -24,7 +27,12 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 
 function PatientDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user'));
+  
+  // Selected visit state - default to currentVisitId from login
+  const [selectedVisitId, setSelectedVisitId] = useState(user?.currentVisitId || null);
+  const [selectedVisitInfo, setSelectedVisitInfo] = useState(null);
 
   // Logout handler
   const handleLogout = () => {
@@ -32,6 +40,11 @@ function PatientDashboard() {
     localStorage.removeItem('user');
     navigate('/patient-login');
   };
+
+  // Check if a visit is required for the current route
+  const visitRequiredRoutes = ['lab-reports', 'prescriptions', 'bills'];
+  const currentPath = location.pathname.split('/').pop();
+  const isVisitRequired = visitRequiredRoutes.includes(currentPath);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f7fb' }}>
@@ -64,18 +77,51 @@ function PatientDashboard() {
             <ListItemIcon sx={{ color: '#fff' }}><HistoryIcon /></ListItemIcon>
             <ListItemText primary="Visit History" />
           </ListItem>
-          <ListItem button component={Link} to="lab-reports">
-            <ListItemIcon sx={{ color: '#fff' }}><ScienceIcon /></ListItemIcon>
-            <ListItemText primary="Lab Reports" />
-          </ListItem>
-          <ListItem button component={Link} to="prescriptions">
-            <ListItemIcon sx={{ color: '#fff' }}><MedicationIcon /></ListItemIcon>
-            <ListItemText primary="Prescriptions" />
-          </ListItem>
-          <ListItem button component={Link} to="bills">
-            <ListItemIcon sx={{ color: '#fff' }}><ReceiptIcon /></ListItemIcon>
-            <ListItemText primary="Bills & Payments" />
-          </ListItem>
+          
+          <Tooltip title={!selectedVisitId ? "Please select a visit from Visit History" : ""} placement="right">
+            <span>
+              <ListItem 
+                button 
+                component={Link} 
+                to="lab-reports"
+                disabled={!selectedVisitId}
+                sx={{ '&.Mui-disabled': { opacity: 0.5, pointerEvents: 'none' } }}
+              >
+                <ListItemIcon sx={{ color: '#fff' }}><ScienceIcon /></ListItemIcon>
+                <ListItemText primary="Lab Reports" />
+              </ListItem>
+            </span>
+          </Tooltip>
+
+          <Tooltip title={!selectedVisitId ? "Please select a visit from Visit History" : ""} placement="right">
+            <span>
+              <ListItem 
+                button 
+                component={Link} 
+                to="prescriptions"
+                disabled={!selectedVisitId}
+                sx={{ '&.Mui-disabled': { opacity: 0.5, pointerEvents: 'none' } }}
+              >
+                <ListItemIcon sx={{ color: '#fff' }}><MedicationIcon /></ListItemIcon>
+                <ListItemText primary="Prescriptions" />
+              </ListItem>
+            </span>
+          </Tooltip>
+
+          <Tooltip title={!selectedVisitId ? "Please select a visit from Visit History" : ""} placement="right">
+            <span>
+              <ListItem 
+                button 
+                component={Link} 
+                to="bills"
+                disabled={!selectedVisitId}
+                sx={{ '&.Mui-disabled': { opacity: 0.5, pointerEvents: 'none' } }}
+              >
+                <ListItemIcon sx={{ color: '#fff' }}><ReceiptIcon /></ListItemIcon>
+                <ListItemText primary="Bills & Payments" />
+              </ListItem>
+            </span>
+          </Tooltip>
         </List>
       </Drawer>
 
@@ -89,6 +135,15 @@ function PatientDashboard() {
               <Typography variant="h6" sx={{ fontWeight: 700, color: '#0D47A1' }}>Holy Cross Hospital</Typography>
             </Stack>
             <Stack direction="row" spacing={2} alignItems="center">
+              {selectedVisitId && (
+                <Chip 
+                  label={`Active Visit: ${selectedVisitId.slice(-6).toUpperCase()}`} 
+                  color="primary" 
+                  size="small" 
+                  onDelete={() => setSelectedVisitId(null)}
+                  sx={{ bgcolor: '#E3F2FD', color: '#0D47A1', fontWeight: 600 }}
+                />
+              )}
               <Typography variant="body2" sx={{ color: '#37474F' }}>Welcome {user?.name || 'Patient'} </Typography>
               <Button variant="outlined" color="inherit" onClick={handleLogout}>Logout</Button>
             </Stack>
@@ -97,7 +152,13 @@ function PatientDashboard() {
 
         {/* Content */}
         <Box sx={{ p: 3 }}>
-          <Outlet />
+          {isVisitRequired && !selectedVisitId ? (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              No visit selected. Please go to <strong>Visit History</strong> and select a visit to view this information.
+            </Alert>
+          ) : (
+            <Outlet context={{ selectedVisitId, setSelectedVisitId }} />
+          )}
         </Box>
       </Box>
     </Box>

@@ -20,6 +20,8 @@ const prescriptionSchema = new mongoose.Schema({
   medicineName: String, // denormalized for quick display
   quantity: { type: Number, default: 1 },
   dosage: String,
+  frequency: String,
+  duration: String,
   instructions: String
 }, { _id: false });
 
@@ -31,7 +33,11 @@ const visitSchema = new mongoose.Schema({
   tokenNumber: { type: Number, required: true },
   appointmentDate: { type: Date, required: true }, // date portion used for per-day token
   slot: slotSchema, // optional — if receptionist picks a slot
-  status: { type: String, enum: ['open','closed','cancelled','no-show'], default: 'open' },
+  status: { 
+    type: String, 
+    enum: ['open', 'closed', 'cancelled', 'no-show', 'Registered', 'VitalsCompleted', 'ReadyForConsultation', 'InConsultation', 'ConsultationCompleted', 'Completed'],
+    default: 'open' 
+  },
   vitals: vitalsSchema, // vitals recorded by nurse
 
   // New: prescriptions stored at visit-level for pharmacy workflow

@@ -35,6 +35,8 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/patient-portal', require('./routes/patient-portal'));
 app.use('/api/ml', require('./routes/ml'));
 app.use('/api/tasks', require('./routes/task.routes'));
+app.use('/api/queue', require('./routes/queue'));
+app.use('/api/consultation', require('./routes/consultation'));
 
 
 mongoose.connect(process.env.MONGO_URI)

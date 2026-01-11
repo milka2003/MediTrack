@@ -8,6 +8,24 @@ const { nextSeq } = require('../utils/counters');
 const { sendWhatsAppMessage } = require('../utils/messaging'); // WhatsApp messaging
 const router = express.Router();
 
+const VALID_TRANSITIONS = {
+  'Registered': ['VitalsCompleted', 'cancelled'],
+  'VitalsCompleted': ['ReadyForConsultation', 'InConsultation', 'cancelled'],
+  'ReadyForConsultation': ['InConsultation', 'cancelled'],
+  'InConsultation': ['ConsultationCompleted', 'cancelled'],
+  'ConsultationCompleted': [],
+  'open': ['Registered', 'VitalsCompleted', 'cancelled'],
+  'closed': [],
+  'cancelled': [],
+  'no-show': []
+};
+
+function isValidTransition(current, next) {
+  if (current === next) return true;
+  const allowed = VALID_TRANSITIONS[current] || [];
+  return allowed.includes(next);
+}
+
 /**
  * POST /api/visits
  * body: { opNumber or patientId, doctorId, departmentId (optional), date: 'YYYY-MM-DD', slot?: { day, startTime, endTime } }
@@ -38,48 +56,49 @@ router.post('/', authAny, requireStaff(['Reception','Admin']), async (req, res) 
       return res.status(400).json({ message: 'Cannot book past dates' });
     }
 
-    // Step 2 – Validate Doctor’s Day Schedule
+    // Step 2 – Validate Doctor’s Day Schedule (Bypassed if schedule is empty)
     const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
     const daySchedule = (doctor.schedule || []).filter(s => s.day === dayOfWeek);
-    if (daySchedule.length === 0) {
-      return res.status(400).json({ message: 'Doctor not available on this day' });
-    }
-
-    // Step 3 – Check Slot Time Window & Step 4 – Prevent Expired Slots Today & Step 5 – Respect Max Patients
-    if (slot) {
-      // Step 3: Check if slot fits inside doctor's available hours
-      const matching = daySchedule.some(s => s.startTime <= slot.startTime && s.endTime >= slot.endTime);
-      if (!matching) {
-        return res.status(400).json({ message: 'Doctor not available in this time window' });
-      }
-
-      // Step 4: Prevent expired slots today
-      if (bookingDate.toDateString() === today.toDateString()) {
-        const now = new Date();
-        const [endH, endM] = slot.endTime.split(':').map(Number);
-        const slotEnd = new Date(bookingDate);
-        slotEnd.setHours(endH, endM, 0, 0);
-        if (now > slotEnd) {
-          return res.status(400).json({ message: 'Doctor’s consultation time is over for today' });
+    
+    // If doctor has a schedule defined, validate against it. 
+    // If no schedule (moving to shift management), allow booking.
+    if (daySchedule.length > 0) {
+      // Step 3 – Check Slot Time Window & Step 4 – Prevent Expired Slots Today & Step 5 – Respect Max Patients
+      if (slot) {
+        // Step 3: Check if slot fits inside doctor's available hours
+        const matching = daySchedule.some(s => s.startTime <= slot.startTime && s.endTime >= slot.endTime);
+        if (!matching) {
+          return res.status(400).json({ message: 'Doctor not available in this time window' });
         }
-      }
 
-      // Step 5: Respect max patients
-      const possible = daySchedule.filter(s =>
-        s.startTime <= slot.startTime && s.endTime >= slot.endTime && s.maxPatients && s.maxPatients > 0
-      );
-      for (const s of possible) {
-        const dayStart = new Date(date); dayStart.setHours(0,0,0,0);
-        const dayEnd = new Date(date); dayEnd.setHours(23,59,59,999);
-        const count = await Visit.countDocuments({
-          doctorId,
-          appointmentDate: { $gte: dayStart, $lte: dayEnd },
-          'slot.startTime': s.startTime,
-          'slot.endTime': s.endTime,
-          status: { $ne: 'cancelled' }
-        });
-        if (count >= s.maxPatients) {
-          return res.status(400).json({ message: `Selected slot is full (max ${s.maxPatients})` });
+        // Step 4: Prevent expired slots today
+        if (bookingDate.toDateString() === today.toDateString()) {
+          const now = new Date();
+          const [endH, endM] = slot.endTime.split(':').map(Number);
+          const slotEnd = new Date(bookingDate);
+          slotEnd.setHours(endH, endM, 0, 0);
+          if (now > slotEnd) {
+            return res.status(400).json({ message: 'Doctor’s consultation time is over for today' });
+          }
+        }
+
+        // Step 5: Respect max patients
+        const possible = daySchedule.filter(s =>
+          s.startTime <= slot.startTime && s.endTime >= slot.endTime && s.maxPatients && s.maxPatients > 0
+        );
+        for (const s of possible) {
+          const dayStart = new Date(date); dayStart.setHours(0,0,0,0);
+          const dayEnd = new Date(date); dayEnd.setHours(23,59,59,999);
+          const count = await Visit.countDocuments({
+            doctorId,
+            appointmentDate: { $gte: dayStart, $lte: dayEnd },
+            'slot.startTime': s.startTime,
+            'slot.endTime': s.endTime,
+            status: { $ne: 'cancelled' }
+          });
+          if (count >= s.maxPatients) {
+            return res.status(400).json({ message: `Selected slot is full (max ${s.maxPatients})` });
+          }
         }
       }
     }
@@ -99,7 +118,7 @@ router.post('/', authAny, requireStaff(['Reception','Admin']), async (req, res) 
       tokenNumber: seq,
       appointmentDate: new Date(date),
       slot: slot || undefined,
-      status: 'open'
+      status: 'Registered'
     });
 
     // optional WhatsApp notification
@@ -147,25 +166,46 @@ router.get('/', authAny, requireStaff(['Reception','Admin','Doctor','Nurse','Lab
 });
 
 /**
- * PATCH /api/visits/:id/status  { status: 'closed'|'cancelled' }
+ * PATCH /api/visits/:id/status  { status: 'closed'|'cancelled'|... }
  */
-router.patch('/:id/status', authAny, requireStaff(['Reception','Admin','Billing','Doctor']), async (req, res) => {
-  const { status } = req.body;
-  if (!['open','closed','cancelled'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
-  const visit = await Visit.findByIdAndUpdate(req.params.id, { status }, { new: true });
-  if (!visit) return res.status(404).json({ message: 'Not found' });
-  res.json({ message: 'Status updated', visit });
+router.patch('/:id/status', authAny, requireStaff(['Reception','Admin','Billing','Doctor','Nurse']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const visit = await Visit.findById(req.params.id);
+    if (!visit) return res.status(404).json({ message: 'Visit not found' });
+
+    if (!isValidTransition(visit.status, status)) {
+      return res.status(400).json({ message: `Invalid status transition from ${visit.status} to ${status}` });
+    }
+
+    visit.status = status;
+    await visit.save();
+    res.json({ message: 'Status updated', visit });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 /**
  * PUT /api/visits/:id/vitals  { bp, temperature, oxygen, weight }
  */
 router.put('/:id/vitals', authAny, requireStaff(['Nurse','Admin']), async (req, res) => {
-  const { bp, temperature, oxygen, weight } = req.body;
-  const vitals = { bp, temperature, oxygen, weight, recordedAt: new Date() };
-  const visit = await Visit.findByIdAndUpdate(req.params.id, { vitals }, { new: true });
-  if (!visit) return res.status(404).json({ message: 'Visit not found' });
-  res.json({ message: 'Vitals recorded', visit });
+  try {
+    const { bp, temperature, oxygen, weight } = req.body;
+    const vitals = { bp, temperature, oxygen, weight, recordedAt: new Date() };
+    const visit = await Visit.findById(req.params.id);
+    if (!visit) return res.status(404).json({ message: 'Visit not found' });
+
+    visit.vitals = vitals;
+    if (visit.status === 'Registered' || visit.status === 'open') {
+      visit.status = 'VitalsCompleted';
+    }
+    
+    await visit.save();
+    res.json({ message: 'Vitals recorded', visit });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router;

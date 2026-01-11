@@ -114,7 +114,7 @@ export default function VisitList() {
   };
 
   const counts = useMemo(() => {
-    const c = { open: 0, closed: 0, cancelled: 0 };
+    const c = {};
     for (const v of visits) c[v.status] = (c[v.status] || 0) + 1;
     return c;
   }, [visits]);
@@ -174,8 +174,11 @@ export default function VisitList() {
             sx={{ minWidth: 160 }}
           >
             <MenuItem value="">All</MenuItem>
-            <MenuItem value="open">Open</MenuItem>
-            <MenuItem value="closed">Closed</MenuItem>
+            <MenuItem value="Registered">Registered</MenuItem>
+            <MenuItem value="VitalsCompleted">Vitals Completed</MenuItem>
+            <MenuItem value="ReadyForConsultation">Ready</MenuItem>
+            <MenuItem value="InConsultation">Active</MenuItem>
+            <MenuItem value="ConsultationCompleted">Completed</MenuItem>
             <MenuItem value="cancelled">Cancelled</MenuItem>
           </TextField>
           <IconButton onClick={loadVisits} title="Refresh" color="primary">
@@ -183,10 +186,12 @@ export default function VisitList() {
           </IconButton>
         </Stack>
         <Divider sx={{ my: 2 }} />
-        <Stack direction="row" spacing={1}>
-          <Chip label={`Open: ${counts.open}`} color="info" />
-          <Chip label={`Closed: ${counts.closed}`} color="success" />
-          <Chip label={`Cancelled: ${counts.cancelled}`} color="default" />
+        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+          <Chip label={`Reg: ${counts.Registered || 0}`} color="default" />
+          <Chip label={`Vitals: ${counts.VitalsCompleted || 0}`} color="secondary" />
+          <Chip label={`Ready: ${counts.ReadyForConsultation || 0}`} color="primary" />
+          <Chip label={`Active: ${counts.InConsultation || 0}`} color="warning" />
+          <Chip label={`Done: ${counts.ConsultationCompleted || 0}`} color="success" />
         </Stack>
       </Paper>
 
@@ -220,26 +225,17 @@ export default function VisitList() {
                   <Chip
                     size="small"
                     label={v.status}
-                    color={v.status === "open" ? "info" : v.status === "closed" ? "success" : "default"}
+                    color={v.status === "InConsultation" ? "warning" : v.status === "ConsultationCompleted" ? "success" : v.status === "ReadyForConsultation" ? "info" : "default"}
                   />
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
                     <Button
                       size="small"
-                      variant="outlined"
-                      startIcon={<CheckCircleIcon />}
-                      disabled={v.status !== "open"}
-                      onClick={() => changeStatus(v._id, "closed")}
-                    >
-                      Close
-                    </Button>
-                    <Button
-                      size="small"
                       color="error"
                       variant="outlined"
                       startIcon={<CancelIcon />}
-                      disabled={v.status === "cancelled"}
+                      disabled={["cancelled", "ConsultationCompleted", "Completed"].includes(v.status)}
                       onClick={() => changeStatus(v._id, "cancelled")}
                     >
                       Cancel
