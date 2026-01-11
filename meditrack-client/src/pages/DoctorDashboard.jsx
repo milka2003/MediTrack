@@ -30,6 +30,7 @@ import LabTestAutocomplete from "../components/LabTestAutocomplete";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import DoctorLabReportsPanel from "./DoctorLabReportsPanel";
+import TaskAllocation from "./admin/TaskAllocation";
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -252,6 +253,10 @@ export default function DoctorDashboard() {
           <ListItemButton selected={menu==='history'} onClick={() => setMenu('history')}>
             <ListItemIcon sx={{ color: "#fff" }}><HistoryIcon /></ListItemIcon>
             <ListItemText primary="History" />
+          </ListItemButton>
+          <ListItemButton selected={menu==='tasks'} onClick={() => setMenu('tasks')} sx={{ backgroundColor: menu === 'tasks' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+            <ListItemIcon sx={{ color: "#fff" }}><AssignmentIcon /></ListItemIcon>
+            <ListItemText primary="Task Allocation" />
           </ListItemButton>
         </List>
       </Box>
@@ -624,6 +629,10 @@ export default function DoctorDashboard() {
 
           {menu === 'lab-reports' && (
             <DoctorLabReportsPanel />
+          )}
+
+          {menu === 'tasks' && (
+            <TaskAllocation />
           )}
         </Box>
       </Box>

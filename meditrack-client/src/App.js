@@ -11,6 +11,7 @@ import PharmacyDashboard from "./pages/pharmacy/Dashboard";
 import MedicineMaster from "./pages/pharmacy/MedicineMaster";
 import Prescriptions from "./pages/pharmacy/Prescriptions";
 import PharmacyReports from "./pages/pharmacy/Reports";
+import PharmacyTasks from "./pages/pharmacy/PharmacyTasks";
 import AdminReports from "./pages/admin/Reports";
 import LabDashboard from "./pages/LabDashboard";
 import LabTestMaster from "./pages/lab/LabTestMaster";
@@ -36,7 +37,9 @@ import PatientBills from "./pages/patient/Bills";
 import AddStaff from "./pages/admin/AddStaff"; 
 import Staff from "./pages/admin/Staff";
 import AdminOverview from "./pages/admin/AdminOverview";
+import ShiftManagement from "./pages/admin/ShiftManagement";
 import MLDashboard from "./pages/MLDashboard";
+import TaskAllocation from "./pages/TaskAllocation";
 // Later you can add these when ready
 // import Reports from "./pages/admin/Reports";
 // import Doctors from "./pages/admin/Doctors";
@@ -55,6 +58,7 @@ function App() {
         <Route path="/dashboard" element={<ProtectedRoute roles={["Admin"]}><Dashboard /></ProtectedRoute>}>
           <Route path="add-staff" element={<AddStaff />} />
           <Route path="staff" element={<Staff />} />
+          <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="departments" element={<Departments />} />
           <Route path="services" element={<Services />} />
           <Route path="doctors" element={<Doctors />} />
@@ -81,6 +85,7 @@ function App() {
         {/* New Pharmacy Dashboard with Drawer and nested routes */}
         <Route path="/pharmacy" element={<PharmacyDashboard />}>
           <Route path="prescriptions" element={<Prescriptions />} />
+          <Route path="tasks" element={<PharmacyTasks />} />
           <Route path="medicine-master" element={<MedicineMaster />} />
           <Route path="reports" element={<PharmacyReports />} />
           <Route index element={<Prescriptions />} />
@@ -96,6 +101,7 @@ function App() {
         <Route path="/nurse-dashboard" element={<NurseDashboard />} />
         <Route path="/billing-dashboard" element={<BillingDashboard />} />
         <Route path="/ml-dashboard" element={<ProtectedRoute roles={["Lab"]}><MLDashboard /></ProtectedRoute>} />
+        <Route path="/task-allocation" element={<ProtectedRoute roles={["Doctor", "Admin"]}><TaskAllocation /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

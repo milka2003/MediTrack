@@ -37,6 +37,9 @@ export default function PharmacyDashboard() {
           <ListItem button component={Link} to="prescriptions">
             <ListItemText primary="Prescriptions" />
           </ListItem>
+          <ListItem button component={Link} to="tasks">
+            <ListItemText primary="Allocated Tasks" />
+          </ListItem>
           <ListItem button component={Link} to="medicine-master">
             <ListItemText primary="Medicine Master" />
           </ListItem>

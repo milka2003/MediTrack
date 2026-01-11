@@ -76,7 +76,9 @@ function Reports() {
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [referenceLoading, setReferenceLoading] = useState(false);
-  const [mlData, setMlData] = useState(null);
+  const [doctorPerformanceLoading, setDoctorPerformanceLoading] = useState(false);
+  const [doctorPerformanceData, setDoctorPerformanceData] = useState(null);
+  const [selectedDoctorForComparison, setSelectedDoctorForComparison] = useState(null);
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -164,19 +166,27 @@ function Reports() {
     fetchReports();
   }, [appliedFilters]);
 
-  // Fetch ML analysis data
+
+
+  // Fetch and train doctor performance KNN model
   useEffect(() => {
-    const fetchMLAnalysis = async () => {
+    const fetchDoctorPerformance = async () => {
       try {
-        const { data } = await api.get("/reports/ml-analysis");
-        setMlData(data);
-      } catch (mlError) {
-        console.error("Failed to load ML analysis", mlError);
-        // Don't set error, just leave mlData null
+        setDoctorPerformanceLoading(true);
+        // Train the model first
+        await api.post("/ml/doctor-performance/train");
+        // Then get rankings
+        const { data } = await api.get("/ml/doctor-performance/ranking");
+        setDoctorPerformanceData(data.data);
+      } catch (dpError) {
+        console.error("Failed to load doctor performance", dpError);
+        // Don't set error, just leave data null
+      } finally {
+        setDoctorPerformanceLoading(false);
       }
     };
 
-    fetchMLAnalysis();
+    fetchDoctorPerformance();
   }, []);
 
   const handleFilterChange = (field) => (event) => {
@@ -943,212 +953,167 @@ function Reports() {
           </Paper>
         </Grid>
 
-        {/* ML Analysis Section */}
-        {mlData && mlData.success && (
+        {/* Doctor Performance KNN Section */}
+        {doctorPerformanceData && (
           <>
-            {/* ML Prediction Insight Card */}
             <Grid item xs={12}>
-              <Paper sx={{ p: 3, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                  🤖 ML Model Intelligence & Predictions
-                </Typography>
-                {mlData.insights.modelsTrained ? (
-                  <Stack spacing={1}>
-                    <Typography variant="body1">
-                      <strong>Status:</strong> {mlData.insights.modelReliability || "Ready"}
-                    </Typography>
-                    <Typography variant="body1">
-                      <strong>Prediction Summary:</strong> {mlData.insights.predictionSummary}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Last Trained: {mlData.insights.lastTrainingDate ? new Date(mlData.insights.lastTrainingDate).toLocaleDateString() : "Not yet trained"}
-                    </Typography>
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    ℹ️ Models have not been trained yet. Please train models in the ML Dashboard to see predictions.
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, mt: 2 }}>
+                👨‍⚕️ Doctor Performance Analytics (KNN Model)
+              </Typography>
+            </Grid>
+
+            {/* Performance Rankings Table */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Performance Rankings
                   </Typography>
-                )}
+                  {doctorPerformanceLoading && <CircularProgress size={24} />}
+                </Stack>
+                
+                <TableContainer>
+                  <Table>
+                    <TableHead sx={{ backgroundColor: "#f5f5f5" }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Rank</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Doctor Name</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Department</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>Overall Score</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Grade</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>Total Visits</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>Unique Patients</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>Completion Rate</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {doctorPerformanceData.rankings?.map((doctor, index) => {
+                        const gradeColor = 
+                          doctor.performanceGrade.includes('A') ? '#4caf50' :
+                          doctor.performanceGrade.includes('B') ? '#2196f3' :
+                          doctor.performanceGrade.includes('C') ? '#ff9800' :
+                          doctor.performanceGrade.includes('D') ? '#ff6f00' :
+                          '#f44336';
+
+                        return (
+                          <TableRow key={doctor.doctorId} hover>
+                            <TableCell sx={{ fontWeight: 600 }}>{index + 1}</TableCell>
+                            <TableCell>{doctor.doctorName}</TableCell>
+                            <TableCell>{doctor.department}</TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={`${doctor.overallScore}/100`}
+                                sx={{
+                                  backgroundColor: gradeColor,
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  fontSize: '0.9rem'
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={doctor.performanceGrade}
+                                variant="outlined"
+                                sx={{ borderColor: gradeColor, color: gradeColor, fontWeight: 600 }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">{doctor.metrics.totalVisits}</TableCell>
+                            <TableCell align="right">{doctor.metrics.uniquePatients}</TableCell>
+                            <TableCell align="right">
+                              {(doctor.metrics.visitCompletionRate * 100).toFixed(1)}%
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Paper>
             </Grid>
 
-            {/* ML Model Comparison Bar Chart */}
-            <Grid item xs={12}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
-                  Model Performance Comparison
+            {/* Performance Distribution Charts */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  Total Visits Distribution
                 </Typography>
-                {mlData.models && mlData.models.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                      data={mlData.models.map((model) => ({
-                        name: model.name.charAt(0).toUpperCase() + model.name.slice(1).replace(/([A-Z])/g, " $1"),
-                        Accuracy: model.accuracy,
-                        Precision: model.precision,
-                        Recall: model.recall,
-                        "F1-Score": model.f1Score,
-                      }))}
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={doctorPerformanceData.rankings?.slice(0, 10) || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="doctorName" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Bar dataKey="metrics.totalVisits" fill="#1976d2" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  Performance Score Distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'A - Excellent', value: doctorPerformanceData.rankings?.filter(d => d.performanceGrade.includes('A')).length || 0, fill: '#4caf50' },
+                        { name: 'B - Good', value: doctorPerformanceData.rankings?.filter(d => d.performanceGrade.includes('B')).length || 0, fill: '#2196f3' },
+                        { name: 'C - Average', value: doctorPerformanceData.rankings?.filter(d => d.performanceGrade.includes('C')).length || 0, fill: '#ff9800' },
+                        { name: 'D - Below Avg', value: doctorPerformanceData.rankings?.filter(d => d.performanceGrade.includes('D')).length || 0, fill: '#ff6f00' },
+                        { name: 'F - Needs Improvement', value: doctorPerformanceData.rankings?.filter(d => d.performanceGrade.includes('F')).length || 0, fill: '#f44336' },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Bar dataKey="Accuracy" fill="#8884d8" />
-                      <Bar dataKey="Precision" fill="#82ca9d" />
-                      <Bar dataKey="Recall" fill="#ffc658" />
-                      <Bar dataKey="F1-Score" fill="#ff7c7c" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
-                    No model data available. Train models to see comparison.
-                  </Typography>
-                )}
+                      {[0, 1, 2, 3, 4].map((index, key) => (
+                        <Cell 
+                          key={`cell-${key}`}
+                          fill={['#4caf50', '#2196f3', '#ff9800', '#ff6f00', '#f44336'][index]}
+                        />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </Paper>
             </Grid>
 
-            {/* ML Model Detailed Metrics Table */}
+            {/* KNN Model Info */}
             <Grid item xs={12}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
-                  Detailed Model Metrics
+              <Alert severity="info">
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  🤖 K-Nearest Neighbors (KNN) Analysis
                 </Typography>
-                {mlData.models && mlData.models.length > 0 ? (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                          <TableCell><strong>Model Name</strong></TableCell>
-                          <TableCell align="center"><strong>Accuracy (%)</strong></TableCell>
-                          <TableCell align="center"><strong>Precision (%)</strong></TableCell>
-                          <TableCell align="center"><strong>Recall (%)</strong></TableCell>
-                          <TableCell align="center"><strong>F1-Score (%)</strong></TableCell>
-                          <TableCell align="center"><strong>TP</strong></TableCell>
-                          <TableCell align="center"><strong>FP</strong></TableCell>
-                          <TableCell align="center"><strong>TN</strong></TableCell>
-                          <TableCell align="center"><strong>FN</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {mlData.models.map((model, idx) => {
-                          const modelName = model.name.charAt(0).toUpperCase() + model.name.slice(1).replace(/([A-Z])/g, " $1");
-                          const f1Score = model.f1Score || 0;
-                          const getChipColor = () => {
-                            if (f1Score > 85) return "success";
-                            if (f1Score > 70) return "warning";
-                            return "error";
-                          };
-
-                          return (
-                            <TableRow key={idx} hover>
-                              <TableCell><strong>{modelName}</strong></TableCell>
-                              <TableCell align="center">{(model.accuracy || 0).toFixed(2)}</TableCell>
-                              <TableCell align="center">{(model.precision || 0).toFixed(2)}</TableCell>
-                              <TableCell align="center">{(model.recall || 0).toFixed(2)}</TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={`${(f1Score || 0).toFixed(2)}`}
-                                  size="small"
-                                  color={getChipColor()}
-                                  variant="outlined"
-                                />
-                              </TableCell>
-                              <TableCell align="center">{model.truePositives || 0}</TableCell>
-                              <TableCell align="center">{model.falsePositives || 0}</TableCell>
-                              <TableCell align="center">{model.trueNegatives || 0}</TableCell>
-                              <TableCell align="center">{model.falseNegatives || 0}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                ) : (
-                  <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
-                    No model metrics available. Train models to see detailed metrics.
-                  </Typography>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Model Statistics Cards */}
-            {mlData.insights.averageMetrics && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>Average Accuracy</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {(mlData.insights.averageMetrics.avgAccuracy || 0).toFixed(2)}%
-                  </Typography>
-                </Paper>
-              </Grid>
-            )}
-            {mlData.insights.averageMetrics && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "white" }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>Average Precision</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {(mlData.insights.averageMetrics.avgPrecision || 0).toFixed(2)}%
-                  </Typography>
-                </Paper>
-              </Grid>
-            )}
-            {mlData.insights.averageMetrics && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", color: "white" }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>Average Recall</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {(mlData.insights.averageMetrics.avgRecall || 0).toFixed(2)}%
-                  </Typography>
-                </Paper>
-              </Grid>
-            )}
-            {mlData.insights.averageMetrics && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ p: 2, textAlign: "center", background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", color: "white" }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>Average F1-Score</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {(mlData.insights.averageMetrics.avgF1Score || 0).toFixed(2)}%
-                  </Typography>
-                </Paper>
-              </Grid>
-            )}
-
-            {/* ML Metrics Explanation */}
-            <Grid item xs={12}>
-              <Paper sx={{ p: 2, backgroundColor: "#f9f9f9" }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                  📊 Understanding the Metrics
+                <Typography variant="body2">
+                  This analysis uses KNN machine learning to cluster and rank doctors based on 6 performance metrics:
+                  <strong> Total Visits, Unique Patients, Consultation Fee, Visit Completion Rate, Prescription Frequency, and Repeat Patient %</strong>.
+                  The overall score (0-100) is calculated with weighted factors: Visits (30%), Patients (25%), Completion (25%), Prescriptions (20%).
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Accuracy</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Percentage of correct predictions (TP+TN)/(Total)
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Precision</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Of predicted positives, how many were correct TP/(TP+FP)
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Recall</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Of actual positives, how many were found TP/(TP+FN)
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>F1-Score</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Harmonic mean of precision and recall (2×P×R)/(P+R)
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
+              </Alert>
             </Grid>
           </>
+        )}
+        
+        {doctorPerformanceLoading && !doctorPerformanceData && (
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          </Grid>
         )}
       </Grid>
     </Box>

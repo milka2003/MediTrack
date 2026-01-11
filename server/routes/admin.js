@@ -6,6 +6,8 @@ const { authAny, requireStaff } = require('../middleware/auth');
 const Department = require('../models/Department');
 const Service = require('../models/Service');
 const Doctor = require("../models/Doctor");
+const ShiftTemplate = require('../models/ShiftTemplate');
+const StaffShiftMapping = require('../models/StaffShiftMapping');
 
 
 const router = express.Router();
@@ -262,6 +264,220 @@ router.get('/stats', authAny, requireStaff(['Admin']), async (req, res) => {
     res.json({ staffCount, doctorCount, departmentCount, patientCount });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch stats', error: err.message });
+  }
+});
+
+
+/* ---------- SHIFT TEMPLATES ---------- */
+
+// POST /api/admin/shift-templates
+router.post('/shift-templates', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { name, startTime, endTime } = req.body;
+
+    if (!name || !startTime || !endTime) {
+      return res.status(400).json({ message: 'Name, start time, and end time are required' });
+    }
+
+    const shiftTemplate = await ShiftTemplate.create({
+      name,
+      startTime,
+      endTime,
+      isActive: true
+    });
+
+    res.status(201).json({
+      message: 'Shift template created successfully',
+      shiftTemplate
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'Shift template with this name already exists' });
+    }
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/admin/shift-templates
+router.get('/shift-templates', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const shiftTemplates = await ShiftTemplate.find().sort({ name: 1 });
+    res.json({ shiftTemplates });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PUT /api/admin/shift-templates/:id
+router.put('/shift-templates/:id', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, startTime, endTime, isActive } = req.body;
+
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (startTime !== undefined) update.startTime = startTime;
+    if (endTime !== undefined) update.endTime = endTime;
+    if (isActive !== undefined) update.isActive = isActive;
+    update.updatedAt = new Date();
+
+    const shiftTemplate = await ShiftTemplate.findByIdAndUpdate(
+      id,
+      update,
+      { new: true, runValidators: true }
+    );
+
+    if (!shiftTemplate) {
+      return res.status(404).json({ message: 'Shift template not found' });
+    }
+
+    res.json({
+      message: 'Shift template updated successfully',
+      shiftTemplate
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// DELETE /api/admin/shift-templates/:id
+router.delete('/shift-templates/:id', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shiftTemplate = await ShiftTemplate.findByIdAndDelete(id);
+
+    if (!shiftTemplate) {
+      return res.status(404).json({ message: 'Shift template not found' });
+    }
+
+    res.json({ message: 'Shift template deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+
+/* ---------- STAFF SHIFT MAPPINGS ---------- */
+
+// POST /api/admin/staff-shift-mappings
+router.post('/staff-shift-mappings', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { staffId, staffName, role, shiftTemplateId, effectiveFrom, effectiveTo } = req.body;
+
+    if (!staffId || !staffName || !role || !shiftTemplateId || !effectiveFrom) {
+      return res.status(400).json({
+        message: 'staffId, staffName, role, shiftTemplateId, and effectiveFrom are required'
+      });
+    }
+
+    const shiftTemplateExists = await ShiftTemplate.findById(shiftTemplateId);
+    if (!shiftTemplateExists) {
+      return res.status(404).json({ message: 'Shift template not found' });
+    }
+
+    const mapping = await StaffShiftMapping.create({
+      staffId,
+      staffName,
+      role,
+      shiftTemplateId,
+      effectiveFrom: new Date(effectiveFrom),
+      effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
+      isActive: true
+    });
+
+    res.status(201).json({
+      message: 'Staff shift mapping created successfully',
+      mapping
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/admin/staff-shift-mappings
+router.get('/staff-shift-mappings', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const mappings = await StaffShiftMapping.find()
+      .populate('staffId', 'name email')
+      .populate('shiftTemplateId', 'name startTime endTime')
+      .sort({ effectiveFrom: -1 });
+
+    res.json({ mappings });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/admin/staff-shift-mappings/:staffId
+router.get('/staff-shift-mappings/:staffId', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    const mappings = await StaffShiftMapping.find({ staffId })
+      .populate('shiftTemplateId', 'name startTime endTime')
+      .sort({ effectiveFrom: -1 });
+
+    res.json({ mappings });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PUT /api/admin/staff-shift-mappings/:id
+router.put('/staff-shift-mappings/:id', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { staffName, role, shiftTemplateId, effectiveFrom, effectiveTo, isActive } = req.body;
+
+    const update = {};
+    if (staffName !== undefined) update.staffName = staffName;
+    if (role !== undefined) update.role = role;
+    if (shiftTemplateId !== undefined) {
+      const shiftTemplateExists = await ShiftTemplate.findById(shiftTemplateId);
+      if (!shiftTemplateExists) {
+        return res.status(404).json({ message: 'Shift template not found' });
+      }
+      update.shiftTemplateId = shiftTemplateId;
+    }
+    if (effectiveFrom !== undefined) update.effectiveFrom = new Date(effectiveFrom);
+    if (effectiveTo !== undefined) update.effectiveTo = effectiveTo ? new Date(effectiveTo) : null;
+    if (isActive !== undefined) update.isActive = isActive;
+    update.updatedAt = new Date();
+
+    const mapping = await StaffShiftMapping.findByIdAndUpdate(
+      id,
+      update,
+      { new: true, runValidators: true }
+    ).populate('staffId', 'name email').populate('shiftTemplateId', 'name startTime endTime');
+
+    if (!mapping) {
+      return res.status(404).json({ message: 'Staff shift mapping not found' });
+    }
+
+    res.json({
+      message: 'Staff shift mapping updated successfully',
+      mapping
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// DELETE /api/admin/staff-shift-mappings/:id
+router.delete('/staff-shift-mappings/:id', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const mapping = await StaffShiftMapping.findByIdAndDelete(id);
+
+    if (!mapping) {
+      return res.status(404).json({ message: 'Staff shift mapping not found' });
+    }
+
+    res.json({ message: 'Staff shift mapping deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

@@ -21,6 +21,7 @@ app.get('/', (req, res) => {
 // ==== use our new routes ====
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api', require('./routes/shifts'));
 app.use('/api/reception', require('./routes/reception'));
 app.use('/api/visits', require('./routes/visits'));
 app.use('/api/doctor', require('./routes/doctor'));
@@ -33,6 +34,7 @@ app.use('/api/billing', require('./routes/billing'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/patient-portal', require('./routes/patient-portal'));
 app.use('/api/ml', require('./routes/ml'));
+app.use('/api/tasks', require('./routes/task.routes'));
 
 
 mongoose.connect(process.env.MONGO_URI)

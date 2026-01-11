@@ -513,74 +513,65 @@ router.get(
 );
 
 // GET /api/reports/ml-analysis
-// ML Model Analysis and Comparison
+// ML Model Analysis and Comparison (calls Python ML service)
 router.get(
   "/ml-analysis",
   authAny,
   requireStaff(["Admin"]),
   async (req, res) => {
     try {
-      const labAnomalyDetection = require("../ml/labAnomalyDetection");
+      const axios = require("axios");
+      const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5000";
 
-      // Get model comparison
-      const modelComparison = labAnomalyDetection.getModelComparison();
+      // Get metrics from Python ML service
+      const response = await axios.get(`${ML_SERVICE_URL}/api/ml/metrics`);
+      const mlData = response.data.data;
 
-      // Get best model
-      const bestModel = labAnomalyDetection.getBestModel();
-
-      // Get prediction insights (bed occupancy, patient risk, etc.)
-      let predictionInsights = {
-        modelsTrained: modelComparison.trained,
-        lastTrainingDate: modelComparison.trainingDate,
+      // Format response
+      let insights = {
+        modelsTrained: true,
+        lastTrainingDate: new Date().toISOString(),
+        totalModels: Object.keys(mlData.models).length,
       };
 
-      if (modelComparison.trained && bestModel) {
-        // Calculate average metrics
-        const avgMetrics = {
-          avgAccuracy:
-            modelComparison.models.reduce((sum, m) => sum + m.accuracy, 0) /
-            modelComparison.models.length,
-          avgPrecision:
-            modelComparison.models.reduce((sum, m) => sum + m.precision, 0) /
-            modelComparison.models.length,
-          avgRecall:
-            modelComparison.models.reduce((sum, m) => sum + m.recall, 0) /
-            modelComparison.models.length,
-          avgF1Score:
-            modelComparison.models.reduce((sum, m) => sum + m.f1Score, 0) /
-            modelComparison.models.length,
-        };
-
-        // Prediction insight: based on best model performance
-        let riskLevel = "Low";
-        if (bestModel.metrics.f1Score < 60) {
-          riskLevel = "High";
-        } else if (bestModel.metrics.f1Score < 75) {
-          riskLevel = "Medium";
-        }
-
-        predictionInsights = {
-          ...predictionInsights,
-          bestModel: {
-            name: bestModel.modelName,
-            f1Score: bestModel.metrics.f1Score,
-            accuracy: bestModel.metrics.accuracy,
-          },
-          averageMetrics: avgMetrics,
-          modelReliability: riskLevel,
-          totalModels: modelComparison.models.length,
-          predictionSummary: `${riskLevel} - Best Model: ${bestModel.modelName} (F1: ${bestModel.metrics.f1Score.toFixed(2)}%)`,
+      if (mlData.average_metrics) {
+        insights.averageMetrics = {
+          avgAccuracy: mlData.average_metrics.accuracy,
+          avgPrecision: mlData.average_metrics.precision,
+          avgRecall: mlData.average_metrics.recall,
+          avgF1Score: mlData.average_metrics.f1_score,
         };
       }
 
+      if (mlData.best_model) {
+        const bestModelData = mlData.models[mlData.best_model];
+        insights.bestModel = {
+          name: mlData.best_model,
+          f1Score: bestModelData.f1_score * 100,
+          accuracy: bestModelData.accuracy * 100,
+        };
+      }
+
+      insights.modelReliability = mlData.reliability_level || "MEDIUM";
+
+      // Convert models to array format for frontend
+      const modelsArray = Object.entries(mlData.models).map(([name, metrics]) => ({
+        modelName: name,
+        accuracy: metrics.accuracy * 100,
+        precision: metrics.precision * 100,
+        recall: metrics.recall * 100,
+        f1Score: metrics.f1_score * 100,
+        confusion_matrix: metrics.confusion_matrix,
+      }));
+
       res.json({
         success: true,
-        models: modelComparison.models || [],
-        insights: predictionInsights,
+        models: modelsArray,
+        insights,
       });
     } catch (error) {
-      console.error("ML analysis report error", error);
-      res.status(500).json({ message: "Failed to generate ML analysis report" });
+      console.error("ML analysis report error", error.message);
+      res.status(500).json({ message: "ML service unavailable. Train models first." });
     }
   }
 );
