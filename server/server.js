@@ -34,14 +34,32 @@ app.use('/api/billing', require('./routes/billing'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/patient-portal', require('./routes/patient-portal'));
 app.use('/api/ml', require('./routes/ml'));
+app.use('/api/disease-prediction', require('./routes/diseasePrediction'));
 app.use('/api/tasks', require('./routes/task.routes'));
 app.use('/api/queue', require('./routes/queue'));
 app.use('/api/consultation', require('./routes/consultation'));
 
 
+const { rotateShifts, updateStaffAvailability } = require('./utils/shiftAutomation');
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB connected');
+    
+    // Background automation for shifts (every 15 minutes)
+    setInterval(async () => {
+      try {
+        await rotateShifts();
+        await updateStaffAvailability();
+      } catch (err) {
+        console.error('Error in shift automation:', err);
+      }
+    }, 15 * 60 * 1000);
+
+    // Initial run
+    rotateShifts().catch(console.error);
+    updateStaffAvailability().catch(console.error);
+
     app.listen(process.env.PORT, () => {
       console.log(`Server running on port ${process.env.PORT}`);
     });

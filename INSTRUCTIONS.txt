@@ -1,0 +1,18 @@
+Installation and Running Guide for Selenium Tests  
+  
+REQUIREMENTS  
+============  
+- Python 3.7+  
+- Chrome browser installed  
+- pip packages: selenium, webdriver-manager  
+  
+INSTALLATION  
+============  
+pip install selenium webdriver-manager  
+  
+RUNNING THE TESTS  
+=================  
+1. Ensure the MediTrack application is running on http://localhost:3000  
+2. Update test credentials if needed (opNumber, doctorId, etc.)  
+3. Run: python selenium_tests.py  
+  

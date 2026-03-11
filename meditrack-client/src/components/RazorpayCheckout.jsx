@@ -75,10 +75,11 @@ const RazorpayCheckout = ({
       // Step 2: Open Razorpay checkout
       const options = {
         key: key,
-        amount: amount * 100, // Razorpay expects amount in paise
+        amount: Math.round(amount * 100), // Razorpay expects amount in paise
         currency: 'INR',
+        name: 'MediTrack Hospital',
+        description: 'Medical Bill Payment',
         order_id: orderId,
-        description: `Bill Payment - ${billId}`,
         prefill: {
           name: patientName || '',
           email: patientEmail || '',
@@ -88,12 +89,14 @@ const RazorpayCheckout = ({
           billId,
           patientName
         },
-        method: {
-          upi: true,
-          card: true,
-          netbanking: true,
-          wallet: false,
-          emandate: false
+        theme: {
+          color: '#0d47a1'
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setError('Payment cancelled by user');
+          }
         },
         handler: async (response) => {
           try {
@@ -105,7 +108,7 @@ const RazorpayCheckout = ({
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              paymentSource: response.razorpay_payment_id ? 'card' : 'upi'
+              paymentSource: 'online'
             });
 
             if (verifyResponse.data.success) {
@@ -121,15 +124,6 @@ const RazorpayCheckout = ({
           } finally {
             setLoading(false);
           }
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-            setError('Payment cancelled by user');
-          }
-        },
-        theme: {
-          color: '#0d47a1'
         }
       };
 

@@ -269,11 +269,10 @@ function BillingDashboard() {
   };
 
   const generateReceiptHTML = () => {
-    console.log('generateReceiptHTML - selectedVisit:', selectedVisit);
-    console.log('generateReceiptHTML - patientId:', selectedVisit?.patientId);
-    console.log('generateReceiptHTML - doctorId:', selectedVisit?.doctorId);
-    console.log('generateReceiptHTML - doctor user:', selectedVisit?.doctorId?.user);
-    console.log('generateReceiptHTML - doctor user name:', selectedVisit?.doctorId?.user?.name);
+    const patient = selectedVisit?.patientId || selectedVisit?.bill?.patientId;
+    const doctor = selectedVisit?.doctorId || selectedVisit?.bill?.visitId?.doctorId;
+    const opNumber = selectedVisit?.opNumber || patient?.opNumber;
+    const tokenNumber = selectedVisit?.tokenNumber || selectedVisit?.bill?.visitId?.tokenNumber;
 
     const { total, balance } = calculateTotals();
     const billDate = new Date().toLocaleDateString();
@@ -286,98 +285,139 @@ function BillingDashboard() {
           <title>MediTrack Bill Receipt</title>
           <style>
             body {
-              font-family: 'Arial', sans-serif;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
               margin: 0;
-              padding: 20px;
-              background: white;
-              color: black;
+              padding: 0;
+              background: #f0f2f5;
+              color: #333;
             }
             .receipt {
-              max-width: 400px;
-              margin: 0 auto;
-              border: 1px solid #ccc;
-              padding: 20px;
+              max-width: 800px;
+              margin: 20px auto;
+              background: white;
+              padding: 40px;
+              box-shadow: 0 0 20px rgba(0,0,0,0.1);
             }
             .header {
               text-align: center;
-              border-bottom: 2px solid #0d47a1;
-              padding-bottom: 10px;
-              margin-bottom: 20px;
+              border-bottom: 3px solid #0d47a1;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
             }
             .hospital-name {
-              font-size: 24px;
-              font-weight: bold;
+              font-size: 36px;
+              font-weight: 800;
               color: #0d47a1;
               margin: 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
             }
             .hospital-details {
-              font-size: 12px;
+              font-size: 14px;
               color: #666;
               margin: 5px 0;
             }
             .bill-title {
-              font-size: 18px;
-              font-weight: bold;
-              margin: 15px 0;
+              font-size: 28px;
+              font-weight: 700;
+              margin: 30px 0;
               text-align: center;
+              color: #333;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 10px;
             }
-            .patient-info, .bill-info {
-              margin-bottom: 15px;
+            .info-container {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 40px;
+              margin-bottom: 30px;
+            }
+            .info-group {
+              display: flex;
+              flex-direction: column;
             }
             .info-row {
               display: flex;
               justify-content: space-between;
-              margin: 5px 0;
-              font-size: 14px;
+              padding: 8px 0;
+              border-bottom: 1px dotted #eee;
+              font-size: 15px;
+            }
+            .info-label {
+              font-weight: 600;
+              color: #555;
+            }
+            .info-value {
+              font-weight: 500;
+              color: #000;
             }
             .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin: 15px 0;
-            }
-            .items-table th, .items-table td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-              font-size: 12px;
+              margin: 30px 0;
             }
             .items-table th {
               background-color: #f8f9fa;
-              font-weight: bold;
+              color: #0d47a1;
+              font-weight: 700;
+              text-align: left;
+              padding: 12px 15px;
+              border-bottom: 2px solid #0d47a1;
+              text-transform: uppercase;
+              font-size: 13px;
+            }
+            .items-table td {
+              padding: 12px 15px;
+              border-bottom: 1px solid #eee;
+              font-size: 15px;
             }
             .amount-cell {
               text-align: right;
             }
-            .totals {
-              border-top: 2px solid #0d47a1;
-              margin-top: 15px;
-              padding-top: 10px;
+            .totals-section {
+              margin-left: auto;
+              width: 300px;
+              margin-top: 20px;
             }
             .total-row {
               display: flex;
               justify-content: space-between;
-              font-weight: bold;
-              font-size: 14px;
-              margin: 5px 0;
+              padding: 10px 0;
+              font-size: 16px;
             }
-            .status {
+            .total-row.grand-total {
+              border-top: 2px solid #0d47a1;
+              margin-top: 10px;
+              font-weight: 800;
+              font-size: 20px;
+              color: #0d47a1;
+            }
+            .status-banner {
               text-align: center;
-              margin: 15px 0;
-              padding: 10px;
-              border: 1px solid #ccc;
-              background-color: #f9f9f9;
+              margin: 40px 0;
+              padding: 15px;
+              border: 2px solid #eee;
+              background-color: #fcfcfc;
+              border-radius: 8px;
+            }
+            .status-text {
+              font-size: 22px;
+              font-weight: 800;
+              color: #2e7d32;
+              text-transform: uppercase;
             }
             .footer {
               text-align: center;
-              margin-top: 20px;
-              font-size: 12px;
-              color: #666;
-              border-top: 1px solid #ccc;
-              padding-top: 10px;
+              margin-top: 50px;
+              font-size: 13px;
+              color: #888;
+              border-top: 1px solid #eee;
+              padding-top: 20px;
             }
             @media print {
-              body { margin: 0; }
-              .receipt { border: none; max-width: none; }
+              body { background: white; padding: 0; }
+              .receipt { box-shadow: none; margin: 0; width: 100%; max-width: none; }
+              @page { margin: 1.5cm; }
             }
           </style>
         </head>
@@ -391,37 +431,38 @@ function BillingDashboard() {
 
             <div class="bill-title">BILL RECEIPT</div>
 
-            <div class="patient-info">
-              <div class="info-row">
-                <span><strong>Patient Name:</strong></span>
-                <span>${selectedVisit?.patientId?.firstName || 'N/A'} ${selectedVisit?.patientId?.lastName || ''}</span>
+            <div class="info-container">
+              <div class="info-group">
+                <div class="info-row">
+                  <span class="info-label">Patient Name</span>
+                  <span class="info-value">${patient?.firstName || 'N/A'} ${patient?.lastName || ''}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">OP Number</span>
+                  <span class="info-value">${opNumber || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Age / Gender</span>
+                  <span class="info-value">${patient?.age || 'N/A'} / ${patient?.gender || 'N/A'}</span>
+                </div>
               </div>
-              <div class="info-row">
-                <span><strong>OP Number:</strong></span>
-                <span>${selectedVisit?.opNumber || 'N/A'}</span>
-              </div>
-              <div class="info-row">
-                <span><strong>Age/Gender:</strong></span>
-                <span>${selectedVisit?.patientId?.age || 'N/A'} / ${selectedVisit?.patientId?.gender || 'N/A'}</span>
-              </div>
-            </div>
-
-            <div class="bill-info">
-              <div class="info-row">
-                <span><strong>Bill Date:</strong></span>
-                <span>${billDate}</span>
-              </div>
-              <div class="info-row">
-                <span><strong>Bill Time:</strong></span>
-                <span>${billTime}</span>
-              </div>
-              <div class="info-row">
-                <span><strong>Token Number:</strong></span>
-                <span>${selectedVisit?.tokenNumber || 'N/A'}</span>
-              </div>
-              <div class="info-row">
-                <span><strong>Doctor:</strong></span>
-                <span>${selectedVisit?.doctorId?.user?.name || 'N/A'}</span>
+              <div class="info-group">
+                <div class="info-row">
+                  <span class="info-label">Bill Date</span>
+                  <span class="info-value">${billDate}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Bill Time</span>
+                  <span class="info-value">${billTime}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Token Number</span>
+                  <span class="info-value">${tokenNumber || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Doctor</span>
+                  <span class="info-value">${doctor?.user?.name || 'N/A'}</span>
+                </div>
               </div>
             </div>
 
@@ -436,37 +477,37 @@ function BillingDashboard() {
                 ${billItems.map(item => `
                   <tr>
                     <td>${item.description}</td>
-                    <td class="amount-cell">${item.amount.toFixed(2)}</td>
+                    <td class="amount-cell">${(item.amount || 0).toFixed(2)}</td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
 
-            <div class="totals">
+            <div class="totals-section">
               <div class="total-row">
-                <span>Total Amount:</span>
+                <span>Sub-Total</span>
                 <span>₹${total.toFixed(2)}</span>
               </div>
               <div class="total-row">
-                <span>Amount Paid:</span>
+                <span>Amount Paid</span>
                 <span>₹${paidAmount.toFixed(2)}</span>
               </div>
-              <div class="total-row">
-                <span>${balance > 0 ? 'Balance Due:' : balance < 0 ? 'Credit:' : 'Balance:'}</span>
+              <div class="total-row grand-total">
+                <span>${balance > 0 ? 'Balance Due' : balance < 0 ? 'Credit' : 'Balance'}</span>
                 <span>₹${Math.abs(balance).toFixed(2)}</span>
               </div>
             </div>
 
-            <div class="status">
-              <strong>Payment Status: ${balance <= 0 ? 'PAID' : balance === total ? 'UNPAID' : 'PARTIAL'}</strong><br>
-              <span>Payment Method: ${paymentMethod}</span>
+            <div class="status-banner">
+              <div class="status-text">Payment Status: ${balance <= 0 ? 'PAID' : balance === total ? 'UNPAID' : 'PARTIAL'}</div>
+              <div style="margin-top: 5px; color: #666;">Payment Method: ${paymentMethod}</div>
             </div>
 
             <div class="footer">
-              <div>Thank you for choosing MediTrack Hospital</div>
-              <div>Generated by: ${userName} | Date: ${billDate}</div>
-              <div style="margin-top: 10px; font-size: 10px;">
-                This is a computer generated receipt and does not require signature.
+              <div style="font-weight: 600; color: #555; margin-bottom: 5px;">Thank you for choosing MediTrack Hospital</div>
+              <div>Generated by: ${userName} | Date: ${billDate} ${billTime}</div>
+              <div style="margin-top: 15px; font-size: 11px; font-style: italic;">
+                This is a computer generated receipt and does not require a physical signature.
               </div>
             </div>
           </div>
@@ -776,7 +817,12 @@ function BillingDashboard() {
                           variant="outlined"
                           onClick={() => {
                             // Load bill details for editing
-                            setSelectedVisit({ _id: bill.visitId._id, bill, opNumber: bill.patientId?.opNumber });
+                            setSelectedVisit({ 
+                              ...bill.visitId, 
+                              patientId: bill.patientId, 
+                              bill, 
+                              opNumber: bill.patientId?.opNumber 
+                            });
                             setBillItems(bill.items || []);
                             setPaidAmount(bill.paidAmount || 0);
                             setPaymentMethod(bill.paymentMethod || 'Cash');

@@ -5,6 +5,7 @@ const patientSchema = new mongoose.Schema({
   lastName: String,
   phone: { type: String, required: true },
   email: { type: String, sparse: true },
+  googleId: { type: String, sparse: true },
   dob: Date,
   age: Number,
   gender: String,

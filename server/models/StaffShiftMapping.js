@@ -29,6 +29,15 @@ const staffShiftMappingSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  rotationType: {
+    type: String,
+    enum: ['None', 'Weekly', 'Bi-weekly', 'Monthly'],
+    default: 'None'
+  },
+  lastRotated: {
+    type: Date,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PatientLoginPage from "./pages/PatientLoginPage";
+import PatientSignupPage from "./pages/PatientSignupPage";
 import Dashboard from "./pages/admin/Dashboard";  // Admin Dashboard Layout
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReceptionDashboard from "./pages/ReceptionDashboard";
@@ -41,6 +42,7 @@ import Staff from "./pages/admin/Staff";
 import AdminOverview from "./pages/admin/AdminOverview";
 import ShiftManagement from "./pages/admin/ShiftManagement";
 import MLDashboard from "./pages/MLDashboard";
+import DiseasePrediction from "./pages/DiseasePrediction";
 import TaskAllocation from "./pages/TaskAllocation";
 // Later you can add these when ready
 // import Reports from "./pages/admin/Reports";
@@ -54,6 +56,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/patient-login" element={<PatientLoginPage />} />
+        <Route path="/patient-signup" element={<PatientSignupPage />} />
         <Route path="/change-password" element={<ChangePassword />} />
 
         {/* Admin Dashboard with nested routes */}
@@ -105,6 +108,7 @@ function App() {
         <Route path="/nurse-dashboard" element={<NurseDashboard />} />
         <Route path="/billing-dashboard" element={<BillingDashboard />} />
         <Route path="/ml-dashboard" element={<ProtectedRoute roles={["Lab"]}><MLDashboard /></ProtectedRoute>} />
+        <Route path="/disease-prediction" element={<DiseasePrediction />} />
         <Route path="/task-allocation" element={<ProtectedRoute roles={["Doctor", "Admin"]}><TaskAllocation /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>

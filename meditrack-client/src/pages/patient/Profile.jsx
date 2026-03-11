@@ -9,7 +9,8 @@ import {
   TextField, 
   Alert,
   CircularProgress,
-  Stack
+  Stack,
+  MenuItem
 } from '@mui/material';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
@@ -20,8 +21,12 @@ function Profile() {
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
+    gender: '',
+    age: '',
     address: ''
   });
   const [updateSuccess, setUpdateSuccess] = useState(false);
@@ -39,8 +44,12 @@ function Profile() {
       });
       setProfile(response.data);
       setFormData({
+        firstName: response.data.firstName || '',
+        lastName: response.data.lastName || '',
         email: response.data.email || '',
         phone: response.data.phone || '',
+        gender: response.data.gender || '',
+        age: response.data.age || '',
         address: response.data.address || ''
       });
     } catch (err) {
@@ -111,6 +120,26 @@ function Profile() {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
+                  label="First Name"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
                   label="Email"
                   name="email"
                   value={formData.email}
@@ -124,6 +153,32 @@ function Profile() {
                   label="Phone"
                   name="phone"
                   value={formData.phone}
+                  onChange={handleInputChange}
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  margin="normal"
+                >
+                  <MenuItem value="Male">Male</MenuItem>
+                  <MenuItem value="Female">Female</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Age"
+                  name="age"
+                  type="number"
+                  value={formData.age}
                   onChange={handleInputChange}
                   margin="normal"
                 />

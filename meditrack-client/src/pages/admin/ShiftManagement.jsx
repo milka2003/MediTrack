@@ -37,9 +37,11 @@ function ShiftManagement() {
   const [templateName, setTemplateName] = useState("Morning");
   const [templateStartTime, setTemplateStartTime] = useState("08:00");
   const [templateEndTime, setTemplateEndTime] = useState("16:00");
+  const [nextTemplateId, setNextTemplateId] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  const [rotationType, setRotationType] = useState("None");
 
   useEffect(() => {
     fetchStaff();
@@ -141,6 +143,7 @@ function ShiftManagement() {
           name: templateName,
           startTime: templateStartTime,
           endTime: templateEndTime,
+          nextTemplateId: nextTemplateId || null,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -149,6 +152,7 @@ function ShiftManagement() {
       setTemplateName("Morning");
       setTemplateStartTime("08:00");
       setTemplateEndTime("16:00");
+      setNextTemplateId("");
       fetchShiftTemplates();
     } catch (err) {
       setMessage(err.response?.data?.message || "❌ Error creating shift template");
@@ -199,6 +203,7 @@ function ShiftManagement() {
           shiftTemplateId: selectedTemplateId,
           effectiveFrom: effectiveFrom,
           effectiveTo: effectiveTo || null,
+          rotationType: rotationType,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -210,6 +215,7 @@ function ShiftManagement() {
       setSelectedTemplateId("");
       setEffectiveFrom("");
       setEffectiveTo("");
+      setRotationType("None");
       fetchShiftMappings();
     } catch (err) {
       setMessage(err.response?.data?.message || "❌ Error creating mapping");
@@ -292,7 +298,7 @@ function ShiftManagement() {
             )}
 
             <form onSubmit={handleCreateTemplate}>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2, mb: 3 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr 1fr" }, gap: 2, mb: 3 }}>
                 <FormControl fullWidth>
                   <InputLabel>Template Name</InputLabel>
                   <Select value={templateName} label="Template Name" onChange={(e) => setTemplateName(e.target.value)}>
@@ -304,6 +310,15 @@ function ShiftManagement() {
                 </FormControl>
                 <TextField label="Start Time" type="time" value={templateStartTime} onChange={(e) => setTemplateStartTime(e.target.value)} InputLabelProps={{ shrink: true }} />
                 <TextField label="End Time" type="time" value={templateEndTime} onChange={(e) => setTemplateEndTime(e.target.value)} InputLabelProps={{ shrink: true }} />
+                <FormControl fullWidth>
+                  <InputLabel>Next Template (for Rotation)</InputLabel>
+                  <Select value={nextTemplateId} label="Next Template (for Rotation)" onChange={(e) => setNextTemplateId(e.target.value)}>
+                    <MenuItem value="">None</MenuItem>
+                    {shiftTemplates.map((t) => (
+                      <MenuItem key={t._id} value={t._id}>{t.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
               <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
                 <Button type="submit" variant="contained" sx={{ bgcolor: "#1565C0", color: "#fff" }}>Create Template</Button>
@@ -319,6 +334,7 @@ function ShiftManagement() {
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Name</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Start Time</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>End Time</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Next Template</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }} align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -329,6 +345,7 @@ function ShiftManagement() {
                         <TableCell>{template.name}</TableCell>
                         <TableCell>{template.startTime}</TableCell>
                         <TableCell>{template.endTime}</TableCell>
+                        <TableCell>{template.nextTemplateId ? shiftTemplates.find(t => t._id === template.nextTemplateId)?.name || "Unknown" : "None"}</TableCell>
                         <TableCell align="right">
                           <Button size="small" variant="contained" color="error" onClick={() => handleDeleteTemplate(template._id)}>Delete</Button>
                         </TableCell>
@@ -363,7 +380,7 @@ function ShiftManagement() {
             )}
 
             <form onSubmit={handleCreateMapping}>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 3 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2, mb: 3 }}>
                 <Box ref={dropdownRef} sx={{ position: "relative" }}>
                   <TextField
                     label="Staff Name"
@@ -392,6 +409,15 @@ function ShiftManagement() {
                     ))}
                   </Select>
                 </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel>Rotation Type</InputLabel>
+                  <Select value={rotationType} label="Rotation Type" onChange={(e) => setRotationType(e.target.value)}>
+                    <MenuItem value="None">None (Static)</MenuItem>
+                    <MenuItem value="Weekly">Weekly</MenuItem>
+                    <MenuItem value="Bi-weekly">Bi-weekly</MenuItem>
+                    <MenuItem value="Monthly">Monthly</MenuItem>
+                  </Select>
+                </FormControl>
                 <TextField label="Role" value={role} fullWidth disabled InputProps={{ readOnly: true }} />
                 <TextField label="Effective From" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} fullWidth InputLabelProps={{ shrink: true }} />
                 <TextField label="Effective To (Optional)" type="date" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} fullWidth InputLabelProps={{ shrink: true }} />
@@ -410,6 +436,7 @@ function ShiftManagement() {
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Staff Name</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Role</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Shift</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Rotation</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Time</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Effective From</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }} align="right">Actions</TableCell>
@@ -422,6 +449,7 @@ function ShiftManagement() {
                         <TableCell>{mapping.staffName}</TableCell>
                         <TableCell>{mapping.role}</TableCell>
                         <TableCell>{mapping.shiftTemplateId?.name || "-"}</TableCell>
+                        <TableCell>{mapping.rotationType || "None"}</TableCell>
                         <TableCell>{mapping.shiftTemplateId?.startTime} - {mapping.shiftTemplateId?.endTime}</TableCell>
                         <TableCell>{new Date(mapping.effectiveFrom).toLocaleDateString()}</TableCell>
                         <TableCell align="right">

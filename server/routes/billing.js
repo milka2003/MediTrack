@@ -112,12 +112,24 @@ router.post('/verify-payment', authAny, async (req, res) => {
       return res.status(404).json({ message: 'Bill not found' });
     }
 
+    // Fetch payment details from Razorpay to get the actual method used
+    let actualPaymentSource = paymentSource || 'card';
+    try {
+      const razorpayInstance = getRazorpayInstance();
+      const paymentDetails = await razorpayInstance.payments.fetch(razorpayPaymentId);
+      if (paymentDetails && paymentDetails.method) {
+        actualPaymentSource = paymentDetails.method;
+      }
+    } catch (fetchError) {
+      console.warn('Failed to fetch payment details from Razorpay:', fetchError.message);
+    }
+
     // Update bill with payment information
     bill.razorpayOrderId = razorpayOrderId;
     bill.razorpayPaymentId = razorpayPaymentId;
     bill.razorpaySignature = razorpaySignature;
-    bill.paymentSource = paymentSource || 'card';
-    bill.paymentMethod = mapPaymentSource(paymentSource);
+    bill.paymentSource = actualPaymentSource;
+    bill.paymentMethod = mapPaymentSource(actualPaymentSource);
     bill.paidAmount = bill.totalAmount;
     bill.status = 'Paid';
 
@@ -144,7 +156,9 @@ function mapPaymentSource(source) {
     upi: 'UPI',
     card: 'Card',
     netbanking: 'Netbanking',
-    wallet: 'Online'
+    wallet: 'Online',
+    paylater: 'Pay Later',
+    emi: 'EMI'
   };
   return sourceMap[source] || 'Online';
 }
@@ -370,8 +384,15 @@ router.get('/', authAny, requireStaff(['Billing', 'Admin']), async (req, res) =>
     }
 
     const bills = await Bill.find(query)
-      .populate('visitId', 'appointmentDate tokenNumber status')
-      .populate('patientId', 'firstName lastName opNumber')
+      .populate({
+        path: 'visitId',
+        select: 'appointmentDate tokenNumber status doctorId',
+        populate: {
+          path: 'doctorId',
+          populate: { path: 'user', model: 'User', select: 'name' }
+        }
+      })
+      .populate('patientId', 'firstName lastName opNumber age gender phone email')
       .sort({ generatedAt: -1 });
 
     res.json({ bills });

@@ -21,8 +21,8 @@ A complete, production-ready UPI payment system for hospital billing using Razor
 
 #### Environment Setup (`.env`)
 ```
-✅ RAZORPAY_KEY_ID=rzp_test_RGXWGOBliVCIpU
-✅ RAZORPAY_KEY_SECRET=9Q49llzcN0kLD3021OoSstOp
+✅ RAZORPAY_KEY_ID=rzp_test_S1Fsdwu5K3M4lx
+✅ RAZORPAY_KEY_SECRET=Gh8QIwNlAubDomz6FPS9iLwG
 ✅ NODE_ENV=development
 ```
 
@@ -201,8 +201,8 @@ Added 3 new endpoints:
 
 ### Test Credentials
 ```
-Key ID:        rzp_test_RGXWGOBliVCIpU
-Key Secret:    9Q49llzcN0kLD3021OoSstOp
+Key ID:        rzp_test_S1Fsdwu5K3M4lx
+Key Secret:    Gh8QIwNlAubDomz6FPS9iLwG
 Environment:   TEST MODE (No real money)
 ```
 

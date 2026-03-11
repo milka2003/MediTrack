@@ -1,12 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
 const Visit = require('../models/Visit');
 const { signStaffToken, signPatientToken } = require('../utils/jwt');
 const { authAny, requireStaff } = require('../middleware/auth');
+const { nextSeq } = require('../utils/counters');
 
 const router = express.Router();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // STAFF LOGIN
 router.post('/staff-login', async (req, res) => {
@@ -43,6 +46,48 @@ router.post('/staff-login', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PATIENT SIGNUP
+router.post('/patient-signup', async (req, res) => {
+  try {
+    const { firstName, lastName, phone, email, gender, age, password } = req.body;
+    
+    // Check if patient already exists
+    const existing = await Patient.findOne({ $or: [{ phone }, { email }] });
+    if (existing) {
+      return res.status(400).json({ message: 'Patient with this phone or email already exists' });
+    }
+
+    // Generate OP Number (YY-seq)
+    const year = new Date().getFullYear().toString().slice(-2);
+    const seqNum = await nextSeq('patient_op');
+    const opNumber = `${year}-${seqNum}`;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const patient = new Patient({
+      firstName,
+      lastName,
+      phone,
+      email,
+      gender,
+      age,
+      passwordHash,
+      opNumber,
+      portalAccess: true
+    });
+
+    await patient.save();
+    res.status(201).json({ 
+      message: 'Patient registered successfully', 
+      opNumber,
+      identifier: opNumber 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error during registration' });
   }
 });
 
@@ -94,6 +139,78 @@ router.post('/patient-login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PATIENT GOOGLE LOGIN
+router.post('/patient-google-login', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ message: 'Missing token' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, sub: googleId, given_name, family_name } = payload;
+
+    // Find patient by email or googleId
+    let patient = await Patient.findOne({ $or: [{ email }, { googleId }] });
+
+    if (!patient) {
+      // If patient doesn't exist, CREATE them (Google Signup)
+      const year = new Date().getFullYear().toString().slice(-2);
+      const seqNum = await nextSeq('patient_op');
+      const opNumber = `${year}-${seqNum}`;
+
+      patient = new Patient({
+        firstName: given_name || 'Google',
+        lastName: family_name || 'User',
+        email,
+        googleId,
+        opNumber,
+        portalAccess: true,
+        phone: 'Not provided' // Can be updated later in profile
+      });
+      await patient.save();
+    }
+
+    // Update googleId if not set
+    if (!patient.googleId) {
+      patient.googleId = googleId;
+    }
+    
+    if (!patient.portalAccess) {
+      patient.portalAccess = true;
+    }
+
+    patient.lastLogin = new Date();
+    await patient.save();
+
+    // Fetch active visit
+    const activeVisit = await Visit.findOne({ 
+      patientId: patient._id, 
+      status: { $ne: 'VisitClosed' } 
+    }).sort({ createdAt: -1 });
+
+    const authToken = signPatientToken(patient);
+    res.json({
+      token: authToken,
+      user: {
+        id: patient._id,
+        name: patient.firstName + ' ' + patient.lastName,
+        opNumber: patient.opNumber,
+        role: 'Patient',
+        currentVisitId: activeVisit ? activeVisit._id : null
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error during Google login' });
   }
 });
 

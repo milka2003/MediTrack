@@ -512,12 +512,16 @@ router.get('/bills/:billId', authAny, requirePatient, async (req, res) => {
 // Update patient profile (limited fields)
 router.put('/profile', authAny, requirePatient, async (req, res) => {
   try {
-    const { email, phone, address } = req.body;
+    const { firstName, lastName, email, phone, gender, age, address } = req.body;
     
     // Only allow updating specific fields
     const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
+    if (gender !== undefined) updateData.gender = gender;
+    if (age !== undefined) updateData.age = age;
     if (address !== undefined) updateData.address = address;
     
     const patient = await Patient.findByIdAndUpdate(

@@ -7,6 +7,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.1",
+    "@react-oauth/google": "^0.13.4",
     "axios": "^1.11.0",
     "file-saver": "^2.0.5",
     "jspdf": "^3.0.3",
@@ -44,6 +45,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
-    "@types/node": "^24.7.2"
+    "@types/node": "^24.7.2",
+    "chromedriver": "^145.0.5",
+    "selenium-webdriver": "^4.41.0",
+    "wait-on": "^9.0.4"
   }
 }

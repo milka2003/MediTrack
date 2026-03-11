@@ -254,6 +254,7 @@ export default function LabDashboard() {
     { label: 'Lab Test Master', icon: <ScienceIcon />, key: 'tests' },
     { label: 'Pending Reports', icon: <PendingIcon />, key: 'pending' },
     { label: 'Completed Reports', icon: <CheckCircleIcon />, key: 'completed' },
+    { label: 'Disease Prediction', icon: <PsychologyIcon />, key: 'disease-prediction' },
     { label: 'ML Models', icon: <PsychologyIcon />, key: 'ml' }
   ];
 
@@ -300,6 +301,8 @@ export default function LabDashboard() {
               onClick = () => navigate('/lab-dashboard/reports/pending');
             } else if (item.key === 'completed') {
               onClick = () => navigate('/lab-dashboard/reports/completed');
+            } else if (item.key === 'disease-prediction') {
+              onClick = () => navigate('/disease-prediction');
             } else if (item.key === 'ml') {
               onClick = () => navigate('/ml-dashboard');
             }

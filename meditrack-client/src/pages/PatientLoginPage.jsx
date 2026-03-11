@@ -14,6 +14,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../api/client';
+import { GoogleLogin } from '@react-oauth/google';
 
 function PatientLoginPage() {
   const [identifier, setIdentifier] = useState('');
@@ -46,6 +47,30 @@ function PatientLoginPage() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await axios.post(`${API_URL}/auth/patient-google-login`, {
+        token: credentialResponse.credential
+      });
+
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Redirect to patient dashboard
+      navigate('/patient-portal');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google login failed. Please ensure you are a registered patient.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login failed. Please try again.');
+  };
+
   return (
     <Box 
       sx={{ 
@@ -66,7 +91,8 @@ function PatientLoginPage() {
             display: 'flex', 
             flexDirection: 'column', 
             alignItems: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)'
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: 2
           }}
         >
           <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#0D47A1', fontWeight: 700 }}>
@@ -114,13 +140,34 @@ function PatientLoginPage() {
             </Button>
           </Box>
 
-          <Divider sx={{ width: '100%', my: 2 }} />
+          <Divider sx={{ width: '100%', my: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>OR</Typography>
+          </Divider>
+
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+            />
+          </Box>
+
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2">
+              New patient?{' '}
+              <MuiLink component={Link} to="/patient-signup" sx={{ fontWeight: 600 }}>
+                Register here
+              </MuiLink>
+            </Typography>
+          </Box>
+
+          <Divider sx={{ width: '100%', my: 3 }} />
           
           <Stack direction="row" spacing={1} justifyContent="center">
             <MuiLink component={Link} to="/login" variant="body2">
               Staff Login
             </MuiLink>
-            <Typography variant="body2">|</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>|</Typography>
             <MuiLink component={Link} to="/" variant="body2">
               Back to Home
             </MuiLink>

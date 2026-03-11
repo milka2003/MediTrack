@@ -10,6 +10,8 @@ const ShiftTemplate = require('../models/ShiftTemplate');
 const StaffShiftMapping = require('../models/StaffShiftMapping');
 
 
+const { autoAssignShift } = require('../utils/shiftAutomation');
+
 const router = express.Router();
 
 // POST /api/admin/add-staff
@@ -25,11 +27,20 @@ router.post('/add-staff', authAny, requireStaff(['Admin']), async (req, res) => 
       name, email, username, role, passwordHash, firstLogin: true, status: 'active'
     });
 
+    // Auto-assign shift to new staff
+    let shiftMapping = null;
+    try {
+      shiftMapping = await autoAssignShift(user);
+    } catch (err) {
+      console.error('Error in auto shift assignment:', err);
+    }
+
     // IMPORTANT: return temp password ONCE so admin can share securely
     res.json({
-      message: 'Staff created',
+      message: 'Staff created and shift auto-assigned',
       staff: { id: user._id, name: user.name, username: user.username, role: user.role },
-      tempPassword
+      tempPassword,
+      shiftMapping
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -316,7 +327,7 @@ router.get('/shift-templates', authAny, requireStaff(['Admin']), async (req, res
 router.put('/shift-templates/:id', authAny, requireStaff(['Admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, startTime, endTime, isActive } = req.body;
+    const { name, startTime, endTime, isActive, nextTemplateId } = req.body;
 
     if (startTime !== undefined && endTime !== undefined) {
       if (startTime === endTime) {
@@ -339,6 +350,7 @@ router.put('/shift-templates/:id', authAny, requireStaff(['Admin']), async (req,
     if (startTime !== undefined) update.startTime = startTime;
     if (endTime !== undefined) update.endTime = endTime;
     if (isActive !== undefined) update.isActive = isActive;
+    if (nextTemplateId !== undefined) update.nextTemplateId = nextTemplateId;
     update.updatedAt = new Date();
 
     const shiftTemplate = await ShiftTemplate.findByIdAndUpdate(
@@ -383,7 +395,7 @@ router.delete('/shift-templates/:id', authAny, requireStaff(['Admin']), async (r
 // POST /api/admin/staff-shift-mappings
 router.post('/staff-shift-mappings', authAny, requireStaff(['Admin']), async (req, res) => {
   try {
-    const { staffId, staffName, role, shiftTemplateId, effectiveFrom, effectiveTo } = req.body;
+    const { staffId, staffName, role, shiftTemplateId, effectiveFrom, effectiveTo, rotationType } = req.body;
 
     if (!staffId || !staffName || !role || !shiftTemplateId || !effectiveFrom) {
       return res.status(400).json({
@@ -437,6 +449,7 @@ router.post('/staff-shift-mappings', authAny, requireStaff(['Admin']), async (re
       shiftTemplateId,
       effectiveFrom: new Date(effectiveFrom),
       effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
+      rotationType: rotationType || 'None',
       isActive: true
     });
 
@@ -482,7 +495,7 @@ router.get('/staff-shift-mappings/:staffId', authAny, requireStaff(['Admin']), a
 router.put('/staff-shift-mappings/:id', authAny, requireStaff(['Admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { staffName, role, shiftTemplateId, effectiveFrom, effectiveTo, isActive } = req.body;
+    const { staffName, role, shiftTemplateId, effectiveFrom, effectiveTo, isActive, rotationType } = req.body;
 
     const update = {};
     if (staffName !== undefined) update.staffName = staffName;
@@ -497,6 +510,7 @@ router.put('/staff-shift-mappings/:id', authAny, requireStaff(['Admin']), async 
     if (effectiveFrom !== undefined) update.effectiveFrom = new Date(effectiveFrom);
     if (effectiveTo !== undefined) update.effectiveTo = effectiveTo ? new Date(effectiveTo) : null;
     if (isActive !== undefined) update.isActive = isActive;
+    if (rotationType !== undefined) update.rotationType = rotationType;
     update.updatedAt = new Date();
 
     const mapping = await StaffShiftMapping.findByIdAndUpdate(

@@ -18,6 +18,11 @@ const shiftTemplateSchema = new mongoose.Schema({
     required: [true, 'End time is required'],
     match: /^([01]\d|2[0-3]):[0-5]\d$/
   },
+  nextTemplateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ShiftTemplate',
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true
