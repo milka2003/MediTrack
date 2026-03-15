@@ -504,4 +504,73 @@ router.get('/doctor-performance/status', authAny, requireStaff(['Admin']), async
   }
 });
 
+/**
+ * Train depression risk model
+ */
+router.post('/depression/train', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const response = await axios.post(`${ML_SERVICE_URL}/api/ml/depression/train`);
+    res.json({
+      success: true,
+      message: 'Depression model trained successfully',
+      data: response.data
+    });
+  } catch (err) {
+    console.error('Depression training error:', err.message);
+    res.status(err.response?.status || 500).json({ 
+      success: false, 
+      message: 'Training failed', 
+      error: err.response?.data?.error || err.message 
+    });
+  }
+});
+
+/**
+ * Predict depression risk
+ */
+router.post('/depression/predict', authAny, async (req, res) => {
+  try {
+    const { features } = req.body;
+    
+    if (!features) {
+      return res.status(400).json({ message: 'Patient features are required' });
+    }
+
+    const response = await axios.post(`${ML_SERVICE_URL}/api/ml/depression/predict`, { features });
+    
+    res.json({
+      success: true,
+      data: response.data.data
+    });
+  } catch (err) {
+    console.error('Depression prediction error:', err.message);
+    res.status(err.response?.status || 500).json({ 
+      success: false, 
+      prediction: null,
+      message: 'Prediction failed', 
+      error: err.response?.data?.error || err.message 
+    });
+  }
+});
+
+/**
+ * Get depression model status
+ */
+router.get('/depression/status', authAny, async (req, res) => {
+  try {
+    const response = await axios.get(`${ML_SERVICE_URL}/api/ml/depression/status`);
+    res.json({
+      success: true,
+      data: response.data.data
+    });
+  } catch (err) {
+    console.error('Depression status error:', err.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve model status', 
+      error: err.message 
+    });
+  }
+});
+
 module.exports = router;

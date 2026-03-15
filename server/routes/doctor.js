@@ -23,13 +23,14 @@ router.get('/visits', authAny, requireStaff(['Doctor']), async (req, res) => {
   const doctor = await Doctor.findOne({ user: req.auth.id });
   if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
 
-  const { date } = req.query;
+  const { date, patientId } = req.query;
   const q = { doctorId: doctor._id };
+  if (patientId) q.patientId = patientId;
   if (date) {
     const dayStart = new Date(date); dayStart.setHours(0,0,0,0);
     const dayEnd = new Date(date); dayEnd.setHours(23,59,59,999);
     q.appointmentDate = { $gte: dayStart, $lte: dayEnd };
-  } else {
+  } else if (!patientId) {
     const dayStart = new Date(); dayStart.setHours(0,0,0,0);
     const dayEnd = new Date(); dayEnd.setHours(23,59,59,999);
     q.appointmentDate = { $gte: dayStart, $lte: dayEnd };
@@ -151,6 +152,52 @@ router.get('/patients/:patientId/history', authAny, requireStaff(['Doctor']), as
     res.json({ history });
   } catch (e) {
     res.status(500).json({ message: 'Failed to fetch history' });
+  }
+});
+
+// GET /api/doctor/history-patients - list patients seen by this doctor
+router.get('/history-patients', authAny, requireStaff(['Doctor']), async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user: req.auth.id });
+    if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' });
+
+    const { q } = req.query;
+    const matchQuery = { doctorId: doctor._id };
+
+    const pipeline = [
+      { $match: matchQuery },
+      { $group: { _id: '$patientId', lastVisit: { $max: '$appointmentDate' } } },
+      { $lookup: { from: 'patients', localField: '_id', foreignField: '_id', as: 'patient' } },
+      { $unwind: '$patient' }
+    ];
+
+    if (q) {
+      const searchRegex = new RegExp(q, 'i');
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'patient.firstName': searchRegex },
+            { 'patient.lastName': searchRegex },
+            { 'patient.opNumber': searchRegex },
+            { 'patient.phone': searchRegex }
+          ]
+        }
+      });
+    }
+
+    pipeline.push({ $sort: { lastVisit: -1 } });
+
+    const results = await Consultation.aggregate(pipeline);
+    
+    // Fallback to Visit if no consultations found yet for some patients
+    const visitedPatients = results.map(r => ({
+      ...r.patient,
+      lastVisit: r.lastVisit
+    }));
+
+    res.json({ patients: visitedPatients });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

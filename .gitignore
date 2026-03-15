@@ -1,2 +1,8 @@
-﻿node_modules/
+node_modules/
 .env
+__pycache__/
+*.pyc
+*.pkl
+models/
+disease_prediction_service/models/
+ml_service/models/

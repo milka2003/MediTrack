@@ -6,6 +6,7 @@ const { authAny, requireStaff } = require('../middleware/auth');
 const Department = require('../models/Department');
 const Service = require('../models/Service');
 const Doctor = require("../models/Doctor");
+const Patient = require('../models/Patient');
 const ShiftTemplate = require('../models/ShiftTemplate');
 const StaffShiftMapping = require('../models/StaffShiftMapping');
 
@@ -258,6 +259,78 @@ router.post('/staff/:id/reset-password', authAny, requireStaff(['Admin']), async
       staff: { id: user._id, name: user.name, username: user.username, role: user.role },
       tempPassword // return once for admin to share securely
     });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/admin/patients
+router.get('/patients', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = {};
+    if (q) {
+      const searchRegex = new RegExp(q, 'i');
+      query.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { opNumber: searchRegex },
+        { phone: searchRegex }
+      ];
+    }
+
+    const [patients, total] = await Promise.all([
+      Patient.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+      Patient.countDocuments(query)
+    ]);
+
+    res.json({
+      patients,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum)
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/admin/patients/:id/history
+router.get('/patients/:id/history', authAny, requireStaff(['Admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Patient = require('../models/Patient');
+    const Visit = require('../models/Visit');
+    const Consultation = require('../models/Consultation');
+
+    const patient = await Patient.findById(id);
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+    const visits = await Visit.find({ patientId: id })
+      .sort({ appointmentDate: -1 })
+      .populate({ path: 'doctorId', populate: { path: 'user', select: 'name' } })
+      .populate('departmentId', 'name');
+
+    const visitIds = visits.map(v => v._id);
+    const consultations = await Consultation.find({ visitId: { $in: visitIds } });
+    const consultMap = new Map(consultations.map(c => [String(c.visitId), c]));
+
+    const history = visits.map(v => ({
+      _id: v._id,
+      appointmentDate: v.appointmentDate,
+      tokenNumber: v.tokenNumber,
+      status: v.status,
+      vitals: v.vitals,
+      doctor: { id: v.doctorId?._id, name: v.doctorId?.user?.name },
+      department: v.departmentId?.name,
+      consultation: consultMap.get(String(v._id)) || null,
+    }));
+
+    res.json({ patient, history });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

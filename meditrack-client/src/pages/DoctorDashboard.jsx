@@ -41,6 +41,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import MedicationIcon from '@mui/icons-material/Medication';
 import ScienceIcon from '@mui/icons-material/Science';
 import HistoryIcon from '@mui/icons-material/History';
+import SearchIcon from '@mui/icons-material/Search';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import LogoutIcon from '@mui/icons-material/Logout';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -74,6 +76,27 @@ export default function DoctorDashboard() {
   const [queue, setQueue] = useState(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [availability, setAvailability] = useState(null);
+  const [historyPatients, setHistoryPatients] = useState([]);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistoryPatients = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      const { data } = await api.get(`/doctor/history-patients?q=${historySearch}`);
+      setHistoryPatients(data.patients || []);
+    } catch (e) {
+      console.error('Failed to load history patients:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historySearch]);
+
+  useEffect(() => {
+    if (menu === 'patients') {
+      loadHistoryPatients();
+    }
+  }, [menu, loadHistoryPatients]);
 
   const loadAvailability = useCallback(async () => {
     try {
@@ -363,21 +386,17 @@ export default function DoctorDashboard() {
             <ListItemIcon sx={{ color: "#fff" }}><ScienceIcon /></ListItemIcon>
             <ListItemText primary="Lab Reports" />
           </ListItemButton>
-          <ListItemButton selected={menu==='history'} onClick={() => setMenu('history')} sx={{ backgroundColor: menu === 'history' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
-            <ListItemIcon sx={{ color: "#fff" }}><HistoryIcon /></ListItemIcon>
-            <ListItemText primary="History" />
-          </ListItemButton>
           <ListItemButton selected={menu==='tasks'} onClick={() => setMenu('tasks')} sx={{ backgroundColor: menu === 'tasks' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
             <ListItemIcon sx={{ color: "#fff" }}><AssignmentIcon /></ListItemIcon>
             <ListItemText primary="Task Allocation" />
           </ListItemButton>
+
+          <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 2 }} />
+          <ListItemButton onClick={handleLogout} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+            <ListItemIcon sx={{ color: "#fff" }}><LogoutIcon /></ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
         </List>
-        
-        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 1 }} />
-        <ListItemButton onClick={handleLogout} sx={{ borderRadius: 1, '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
-          <ListItemIcon sx={{ color: "#fff" }}><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Logout" />
-        </ListItemButton>
       </Box>
 
       {/* Main Content */}
@@ -798,7 +817,7 @@ export default function DoctorDashboard() {
                               </div>
                               {h.consultation?.diagnosis && <div>Dx: {h.consultation.diagnosis}</div>}
                               {h.consultation?.prescriptions?.length ? (
-                                <div>Rx: {h.consultation.prescriptions.map((p) => `${p.medicine} ${p.dosage}`).join(", ")}</div>
+                                <div>Rx: {h.consultation.prescriptions.map((p) => `${p.medicineName || p.medicine} ${p.dosage}`).join(", ")}</div>
                               ) : null}
                             </div>
                           ))}
@@ -841,6 +860,92 @@ export default function DoctorDashboard() {
 
           {menu === 'tasks' && (
             <TaskAllocation />
+          )}
+
+          {menu === 'patients' && (
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#0d47a1', flexGrow: 1 }}>Patient List</Typography>
+                <TextField 
+                  size="small" 
+                  placeholder="Search patient..." 
+                  value={historySearch} 
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ color: 'action.active', mr: 1 }} fontSize="small" />,
+                  }}
+                  sx={{ width: 300 }}
+                />
+                <Button startIcon={<RefreshIcon />} variant="outlined" size="small" onClick={loadHistoryPatients}>Refresh</Button>
+              </Stack>
+
+              {historyLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress /></Box>
+              ) : (
+                <Table>
+                  <TableHead sx={{ bgcolor: '#f8f9fa' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>OP Number</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Patient Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Age/Gender</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Last Visit</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {historyPatients.map((p) => (
+                      <TableRow key={p._id} hover>
+                        <TableCell sx={{ fontWeight: 700, color: '#0d47a1' }}>{p.opNumber}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>{p.firstName} {p.lastName}</TableCell>
+                        <TableCell>{p.age} / {p.gender}</TableCell>
+                        <TableCell>{p.phone}</TableCell>
+                        <TableCell>{new Date(p.lastVisit).toLocaleDateString()}</TableCell>
+                        <TableCell align="right">
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            startIcon={<HistoryIcon />}
+                            onClick={async () => {
+                              // We need a visit to show the history tab. 
+                              // Find the most recent visit for this patient with this doctor.
+                              try {
+                                const { data } = await api.get(`/doctor/visits?patientId=${p._id}`);
+                                if (data.visits && data.visits.length > 0) {
+                                  selectVisit(data.visits[0]);
+                                  setMenu('dashboard');
+                                  setTab(4); // Switch to history tab
+                                } else {
+                                  // Fallback: if no visit found in today's context, just show alert or handle accordingly
+                                  // For now, we'll try to find any visit for this patient
+                                  const vRes = await api.get(`/doctor/patients/${p._id || p.id}/history`);
+                                  if (vRes.data.history && vRes.data.history.length > 0) {
+                                    const latestVisit = vRes.data.history[0];
+                                    // Construct a minimal visit object for selectVisit
+                                    selectVisit({ _id: latestVisit._id, patientId: p });
+                                    setMenu('dashboard');
+                                    setTab(4);
+                                  }
+                                }
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                          >
+                            View History
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {historyPatients.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>No patient records found.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </Paper>
           )}
 
           {menu === 'queue' && (

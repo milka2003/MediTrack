@@ -160,4 +160,100 @@ router.post('/predict/kidney/manual', authAny, async (req, res) => {
     }
 });
 
+/**
+ * Manual liver disease prediction
+ */
+router.post('/predict/liver/manual', authAny, async (req, res) => {
+    try {
+        const { parameters, age, gender } = req.body;
+        
+        if (!parameters || !Array.isArray(parameters) || parameters.length === 0) {
+            return res.status(400).json({ message: 'Parameters array is required' });
+        }
+        
+        // Call Python ML service
+        const response = await axios.post(`${DISEASE_ML_SERVICE_URL}/predict/liver`, {
+            patientId: 'manual',
+            parameters,
+            age: age || 40,
+            gender: gender || 'Male'
+        });
+        
+        res.json({
+            prediction: response.data
+        });
+        
+    } catch (err) {
+        console.error('Liver disease prediction error:', err.message);
+        res.status(500).json({ 
+            message: 'Liver disease prediction failed', 
+            error: err.response?.data?.detail || err.message 
+        });
+    }
+});
+
+/**
+ * Manual sepsis prediction
+ */
+router.post('/predict/sepsis/manual', authAny, async (req, res) => {
+    try {
+        const { parameters, age, gender } = req.body;
+        
+        if (!parameters || !Array.isArray(parameters) || parameters.length === 0) {
+            return res.status(400).json({ message: 'Parameters array is required' });
+        }
+        
+        // Call Python ML service
+        const response = await axios.post(`${DISEASE_ML_SERVICE_URL}/predict/sepsis`, {
+            patientId: 'manual',
+            parameters,
+            age: age || 40,
+            gender: gender || 'Male'
+        });
+        
+        res.json({
+            prediction: response.data
+        });
+        
+    } catch (err) {
+        console.error('Sepsis prediction error:', err.message);
+        res.status(500).json({ 
+            message: 'Sepsis prediction failed', 
+            error: err.response?.data?.detail || err.message 
+        });
+    }
+});
+
+/**
+ * Manual cardiovascular disease prediction
+ */
+router.post('/predict/cardio/manual', authAny, async (req, res) => {
+    try {
+        const { parameters, age, gender } = req.body;
+        
+        if (!parameters || !Array.isArray(parameters) || parameters.length === 0) {
+            return res.status(400).json({ message: 'Parameters array is required' });
+        }
+        
+        // Call Python ML service
+        const response = await axios.post(`${DISEASE_ML_SERVICE_URL}/predict/cardio`, {
+            patientId: 'manual',
+            parameters,
+            age: age || 40,
+            gender: gender || 'Male'
+        });
+        
+        res.json({
+            prediction: response.data
+        });
+        
+    } catch (err) {
+        console.error('Cardiovascular prediction error:', err.message);
+        res.status(500).json({ 
+            message: 'Cardiovascular prediction failed', 
+            error: err.response?.data?.detail || err.message 
+        });
+    }
+});
+
 module.exports = router;

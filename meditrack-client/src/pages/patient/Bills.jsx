@@ -26,7 +26,7 @@ import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import RazorpayCheckout from '../../components/RazorpayCheckout';
 
 const formatDate = (dateString) => {
@@ -182,7 +182,7 @@ function Bills() {
       });
     }
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 75,
       head: [['Description', 'Qty', 'Unit Price', 'Amount']],
       body: tableData,

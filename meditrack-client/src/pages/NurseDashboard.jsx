@@ -7,6 +7,7 @@ import {
   Paper,
   Typography,
   TextField,
+  MenuItem,
   Stack,
   Button,
   Chip,
@@ -70,6 +71,8 @@ export default function NurseDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [date, setDate] = useState(formatDate(new Date()));
   const [visits, setVisits] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDept, setSelectedDept] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState(""); // 'success' or 'error'
   const [activeVisit, setActiveVisit] = useState(null);
@@ -85,12 +88,25 @@ export default function NurseDashboard() {
   const loadVisits = useCallback(async () => {
     try {
       const { data } = await api.get(`/visits?date=${date}`);
-      setVisits(data.visits || []);
+      let filtered = data.visits || [];
+      if (selectedDept) {
+        filtered = filtered.filter(v => v.departmentId?._id === selectedDept || v.departmentId === selectedDept);
+      }
+      setVisits(filtered);
     } catch (e) {
       console.error('Nurse Dashboard - API Error:', e);
       setMessage(e.response?.data?.message || "Failed to load visits");
     }
-  }, [date]);
+  }, [date, selectedDept]);
+
+  const loadDepartments = useCallback(async () => {
+    try {
+      const { data } = await api.get("/admin/departments");
+      setDepartments(data.departments || []);
+    } catch (e) {
+      console.error("Failed to load departments", e);
+    }
+  }, []);
 
   useEffect(() => {
     const t = localStorage.getItem("token");
@@ -99,7 +115,8 @@ export default function NurseDashboard() {
       return;
     }
     loadVisits();
-  }, [date, navigate, loadVisits]);
+    loadDepartments();
+  }, [date, navigate, loadVisits, loadDepartments]);
 
   const counts = useMemo(() => {
     const c = { open: 0, closed: 0, cancelled: 0, "no-show": 0 };
@@ -356,6 +373,19 @@ export default function NurseDashboard() {
             </Box>
             
             <Stack direction="row" spacing={2} alignItems="center">
+              <TextField
+                select
+                size="small"
+                label="Department"
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                sx={{ width: 200 }}
+              >
+                <MenuItem value="">All Departments</MenuItem>
+                {departments.map((d) => (
+                  <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+                ))}
+              </TextField>
               <TextField
                 type="date"
                 size="small"

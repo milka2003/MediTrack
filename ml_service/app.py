@@ -1,7 +1,7 @@
 """Flask API for ML Models"""
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from ml_models import ml_engine, doctor_performance_knn
+from ml_models import ml_engine, doctor_performance_knn, depression_risk_model
 import os
 from dotenv import load_dotenv
 
@@ -176,6 +176,54 @@ def doctor_performance_status():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Depression Risk Prediction Endpoints
+@app.route('/api/ml/depression/train', methods=['POST'])
+def train_depression_model():
+    """Train the depression risk model"""
+    try:
+        result = depression_risk_model.train()
+        if 'error' in result:
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/depression/predict', methods=['POST'])
+def predict_depression():
+    """Predict depression risk for a patient"""
+    try:
+        data = request.get_json()
+        features = data.get('features')
+        
+        if not features:
+            return jsonify({'error': 'Patient features required'}), 400
+            
+        result = depression_risk_model.predict(features)
+        if 'error' in result:
+            return jsonify(result), 400
+            
+        return jsonify({
+            'status': 'success',
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/depression/status', methods=['GET'])
+def depression_model_status():
+    """Get depression model status"""
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'trained': depression_risk_model.is_trained,
+            'metrics': depression_risk_model.metrics,
+            'features_required': depression_risk_model.features
+        }
+    })
+
 
 if __name__ == '__main__':
     port = int(os.getenv('ML_SERVICE_PORT', 5000))

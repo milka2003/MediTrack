@@ -24,6 +24,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import ScienceIcon from '@mui/icons-material/Science';
 import MedicationIcon from '@mui/icons-material/Medication';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 
 function PatientDashboard() {
   const navigate = useNavigate();
@@ -76,6 +77,10 @@ function PatientDashboard() {
           <ListItem button component={Link} to="visits">
             <ListItemIcon sx={{ color: '#fff' }}><HistoryIcon /></ListItemIcon>
             <ListItemText primary="Visit History" />
+          </ListItem>
+          <ListItem button component={Link} to="book-appointment">
+            <ListItemIcon sx={{ color: '#fff' }}><EventAvailableIcon /></ListItemIcon>
+            <ListItemText primary="Book Appointment" />
           </ListItem>
           
           <Tooltip title={!selectedVisitId ? "Please select a visit from Visit History" : ""} placement="right">

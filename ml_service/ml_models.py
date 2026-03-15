@@ -1,12 +1,16 @@
 """ML Models for lab anomaly detection and doctor performance analysis"""
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import os
+import joblib
 
 class MLModels:
     def __init__(self):
@@ -400,5 +404,126 @@ class DoctorPerformanceKNN:
 
 
 # Global instances
+class DepressionRiskModel:
+    """Predicts depression risk based on lab results and PHQ-9 survey responses"""
+    def __init__(self, data_path=None):
+        self.data_path = data_path or r"c:\Users\MILKA JAMES\Downloads\mental_health_dataset.csv"
+        self.model_path = "models/depression_model.pkl"
+        self.scaler_path = "models/depression_scaler.pkl"
+        self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+        self.scaler = StandardScaler()
+        self.is_trained = False
+        self.features = [
+            'LBXWBCSI', 'LBXRBCSI', 'LBXHGB', 'LBXPLTSI', 'LBXGLU', 
+            'LBXSAL', 'LBXSCR', 'LBXHSCRP', 'LBXIRN',
+            'DPQ010', 'DPQ020', 'DPQ030', 'DPQ040', 'DPQ050', 
+            'DPQ060', 'DPQ070', 'DPQ080', 'DPQ090', 'DPQ100'
+        ]
+        self.metrics = {}
+        self.load_model()
+
+    def load_model(self):
+        """Load trained model and scaler if they exist"""
+        try:
+            if os.path.exists(self.model_path) and os.path.exists(self.scaler_path):
+                self.model = joblib.load(self.model_path)
+                self.scaler = joblib.load(self.scaler_path)
+                self.is_trained = True
+                print(f"Loaded depression model from {self.model_path}")
+                return True
+        except Exception as e:
+            print(f"Error loading depression model: {e}")
+        return False
+
+    def train(self):
+        """Train the model using the dataset"""
+        try:
+            if not os.path.exists(self.data_path):
+                return {'error': f"Dataset not found at {self.data_path}"}
+
+            os.makedirs("models", exist_ok=True)
+            df = pd.read_csv(self.data_path)
+            
+            # Clean scientific notation (0.0000...)
+            for col in self.features:
+                if col in df.columns:
+                    df[col] = df[col].apply(lambda x: 0.0 if float(x) < 1e-10 else float(x))
+
+            # Drop rows with missing feature values
+            df = df.dropna(subset=self.features + ['depression'])
+
+            if len(df) < 10:
+                return {'error': "Insufficient data for training depression model"}
+
+            X = df[self.features]
+            y = df['depression']
+
+            X_scaled = self.scaler.fit_transform(X)
+            self.model.fit(X_scaled, y)
+            
+            # Save model and scaler
+            joblib.dump(self.model, self.model_path)
+            joblib.dump(self.scaler, self.scaler_path)
+            
+            # Basic validation
+            y_pred = self.model.predict(X_scaled)
+            self.metrics = {
+                'accuracy': round(accuracy_score(y, y_pred), 4),
+                'f1_score': round(f1_score(y, y_pred), 4),
+                'samples': len(X)
+            }
+            
+            self.is_trained = True
+            return {'status': 'success', 'metrics': self.metrics}
+            
+        except Exception as e:
+            return {'error': str(e)}
+
+    def predict(self, patient_features):
+        """
+        Predict depression risk for a patient
+        patient_features: list or dict containing 19 features in the correct order
+        """
+        if not self.is_trained:
+            # Try to train on demand if not trained
+            train_res = self.train()
+            if 'error' in train_res:
+                return train_res
+
+        try:
+            if isinstance(patient_features, dict):
+                # Ensure correct order of features
+                input_data = [float(patient_features.get(f, 0)) for f in self.features]
+            else:
+                input_data = [float(f) for f in patient_features]
+
+            if len(input_data) != len(self.features):
+                return {'error': f"Expected {len(self.features)} features, got {len(input_data)}"}
+
+            # Clean near-zero values
+            input_data = [0.0 if x < 1e-10 else x for x in input_data]
+            
+            X_scaled = self.scaler.transform([input_data])
+            prediction = int(self.model.predict(X_scaled)[0])
+            probability = float(self.model.predict_proba(X_scaled)[0][1])
+
+            risk_level = "Low"
+            if probability > 0.7:
+                risk_level = "High"
+            elif probability > 0.4:
+                risk_level = "Moderate"
+
+            return {
+                'depression_risk': bool(prediction),
+                'probability': round(probability, 4),
+                'risk_level': risk_level,
+                'confidence': round(probability if prediction else (1 - probability), 4)
+            }
+        except Exception as e:
+            return {'error': str(e)}
+
+
+# Global instances
 ml_engine = MLModels()
 doctor_performance_knn = DoctorPerformanceKNN(n_neighbors=3)
+depression_risk_model = DepressionRiskModel()

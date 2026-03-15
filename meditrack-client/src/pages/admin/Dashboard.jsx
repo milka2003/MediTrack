@@ -10,6 +10,7 @@ import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import PeopleIcon from '@mui/icons-material/People';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 
@@ -71,6 +72,10 @@ function Dashboard() {
           <ListItem button component={Link} to="doctors" onClick={() => setActiveMenu(null)}>
             <ListItemIcon sx={{ color: '#fff' }}><LocalHospitalIcon /></ListItemIcon>
             <ListItemText primary="Doctors" />
+          </ListItem>
+          <ListItem button component={Link} to="patients" onClick={() => setActiveMenu(null)}>
+            <ListItemIcon sx={{ color: '#fff' }}><PeopleIcon /></ListItemIcon>
+            <ListItemText primary="Patients" />
           </ListItem>
           <ListItem button onClick={() => setActiveMenu('tasks')} sx={{ backgroundColor: activeMenu === 'tasks' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
             <ListItemIcon sx={{ color: '#fff' }}><AssignmentIcon /></ListItemIcon>

@@ -8,7 +8,7 @@ import {
   Button,
   MenuItem,
 } from "@mui/material";
-import axios from "axios";
+import api from "../../api/client";
 
 function AddStaff() {
   const [name, setName] = useState("");
@@ -22,13 +22,9 @@ function AddStaff() {
     setMessage("");
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/admin/add-staff",
-        { name, username, email, role },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const res = await api.post(
+        "/admin/add-staff",
+        { name, username, email, role }
       );
 
       setMessage(

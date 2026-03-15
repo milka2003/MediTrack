@@ -90,16 +90,24 @@ function Visits() {
   const getStatusChip = (status) => {
     let color = 'default';
     switch (status) {
+      case 'Registered':
+      case 'open':
       case 'waiting':
-        color = 'warning';
+        color = 'primary';
         break;
+      case 'VitalsCompleted':
+      case 'ReadyForConsultation':
+      case 'InConsultation':
       case 'in-progress':
         color = 'info';
         break;
+      case 'ConsultationCompleted':
+      case 'Completed':
       case 'completed':
         color = 'success';
         break;
       case 'cancelled':
+      case 'no-show':
         color = 'error';
         break;
       default:

@@ -52,7 +52,7 @@ const updateStaffAvailability = async () => {
   // Mark doctors on shift as Available (if not Busy)
   for (const doctorId of doctorIdsOnShift) {
     const availability = await DoctorAvailability.findOne({ doctorId });
-    if (availability && availability.availabilityStatus === 'Off-duty') {
+    if (availability && availability.availabilityStatus === 'Unavailable') {
       availability.availabilityStatus = 'Available';
       await availability.save();
     } else if (!availability) {
@@ -63,7 +63,7 @@ const updateStaffAvailability = async () => {
     }
   }
 
-  // Mark doctors NOT on shift as Off-duty
+  // Mark doctors NOT on shift as Unavailable
   const allDoctors = await User.find({ role: 'Doctor' }).select('_id');
   const doctorIdsNotOnShift = allDoctors
     .map(d => d._id)
@@ -71,8 +71,8 @@ const updateStaffAvailability = async () => {
 
   for (const doctorId of doctorIdsNotOnShift) {
     const availability = await DoctorAvailability.findOne({ doctorId });
-    if (availability && availability.availabilityStatus !== 'Off-duty') {
-      availability.availabilityStatus = 'Off-duty';
+    if (availability && availability.availabilityStatus !== 'Unavailable') {
+      availability.availabilityStatus = 'Unavailable';
       await availability.save();
     }
   }

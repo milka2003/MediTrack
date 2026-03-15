@@ -35,10 +35,13 @@ import PatientVisits from "./pages/patient/Visits";
 import PatientLabReports from "./pages/patient/LabReports";
 import PatientPrescriptions from "./pages/patient/Prescriptions";
 import PatientBills from "./pages/patient/Bills";
+import PatientBookAppointment from "./pages/patient/BookAppointment";
 
 // ✅ Now AddStaff is imported
 import AddStaff from "./pages/admin/AddStaff"; 
 import Staff from "./pages/admin/Staff";
+import Patients from "./pages/admin/Patients";
+import PatientHistory from "./pages/admin/PatientHistory";
 import AdminOverview from "./pages/admin/AdminOverview";
 import ShiftManagement from "./pages/admin/ShiftManagement";
 import MLDashboard from "./pages/MLDashboard";
@@ -67,6 +70,8 @@ function App() {
           <Route path="departments" element={<Departments />} />
           <Route path="services" element={<Services />} />
           <Route path="doctors" element={<Doctors />} />
+          <Route path="patients" element={<Patients />} />
+          <Route path="patient-history/:id" element={<PatientHistory />} />
           <Route path="reports" element={<AdminReports />} />
           {/* Default index → Overview */}
           <Route index element={<AdminOverview />} />
@@ -82,6 +87,7 @@ function App() {
           <Route path="lab-reports" element={<PatientLabReports />} />
           <Route path="prescriptions" element={<PatientPrescriptions />} />
           <Route path="bills" element={<PatientBills />} />
+          <Route path="book-appointment" element={<PatientBookAppointment />} />
           <Route index element={<PatientProfile />} />
         </Route>
 

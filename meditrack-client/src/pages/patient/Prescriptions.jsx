@@ -27,7 +27,7 @@ import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api/client';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -138,7 +138,7 @@ function Prescriptions() {
       });
     }
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 110,
       head: [['Medicine', 'Form/Strength', 'Dosage', 'Frequency', 'Duration', 'Instructions']],
       body: tableData,

@@ -40,7 +40,7 @@ import {
 } from "recharts";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 import api from "../../api/client";
 
@@ -388,7 +388,7 @@ function Reports() {
       if (!body || !body.length) return startY;
       doc.setFontSize(13);
       doc.text(title, 14, startY);
-      doc.autoTable({
+      autoTable(doc, {
         startY: startY + 4,
         head: [head],
         body,

@@ -6,6 +6,10 @@ const Visit = require('../models/Visit');
 const Bill = require('../models/Bill');
 const LabTest = require('../models/LabTest');
 const Consultation = require('../models/Consultation');
+const Doctor = require('../models/Doctor');
+const Department = require('../models/Department');
+const StaffShiftMapping = require('../models/StaffShiftMapping');
+const { nextSeq } = require('../utils/counters');
 const puppeteer = require('puppeteer');
 
 const router = express.Router();
@@ -877,5 +881,111 @@ function generateLabReportHTML(consultation, labRequest) {
     </html>
   `;
 }
+
+// Get list of active departments
+router.get('/departments', authAny, requirePatient, async (req, res) => {
+  try {
+    const departments = await Department.find({ active: true }).sort({ name: 1 });
+    res.json(departments);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Get doctors by department
+router.get('/doctors', authAny, requirePatient, async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+    const filter = { active: true };
+    if (departmentId) filter.department = departmentId;
+    
+    const doctors = await Doctor.find(filter)
+      .populate('user', 'name')
+      .populate('department', 'name')
+      .sort({ 'user.name': 1 });
+
+    // Include shift mapping details for each doctor
+    const doctorsWithShifts = await Promise.all(doctors.map(async (doc) => {
+      const mapping = await StaffShiftMapping.findOne({
+        staffId: doc.user?._id,
+        isActive: true
+      }).populate('shiftTemplateId');
+      
+      return {
+        ...doc.toObject(),
+        shiftMapping: mapping
+      };
+    }));
+      
+    res.json(doctorsWithShifts);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Book an appointment
+router.post('/book-appointment', authAny, requirePatient, async (req, res) => {
+  try {
+    const { doctorId, departmentId, date, slot } = req.body;
+    if (!doctorId || !date) {
+      return res.status(400).json({ message: 'Doctor and date are required' });
+    }
+
+    // Resolve patient
+    const patient = await Patient.findById(req.auth.id);
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+    // Resolve doctor
+    const doctor = await Doctor.findById(doctorId).populate('user');
+    if (!doctor || !doctor.active) return res.status(400).json({ message: 'Doctor not found or inactive' });
+
+    // Validate doctor shift for the given date
+    const bookingDate = new Date(date);
+    const shiftMapping = await StaffShiftMapping.findOne({
+      staffId: doctor.user._id,
+      isActive: true,
+      effectiveFrom: { $lte: bookingDate },
+      $or: [
+        { effectiveTo: null },
+        { effectiveTo: { $gte: bookingDate } }
+      ]
+    });
+
+    if (!shiftMapping) {
+      return res.status(400).json({ 
+        message: 'This doctor is not scheduled for a shift on the selected date.' 
+      });
+    }
+
+    // Validate date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (bookingDate < today) {
+      return res.status(400).json({ message: 'Cannot book past dates' });
+    }
+
+    // Handle token generation (per doctor per day)
+    const dateKey = new Date(date).toISOString().slice(0, 10);
+    const counterKey = `token_${doctorId}_${dateKey}`;
+    const seq = await nextSeq(counterKey);
+
+    // Create visit/appointment
+    const visit = await Visit.create({
+      patientId: patient._id,
+      opNumber: patient.opNumber,
+      departmentId: departmentId || doctor.department,
+      doctorId,
+      tokenNumber: seq,
+      appointmentDate: new Date(date),
+      slot: slot || undefined,
+      status: 'Registered' // Initially Registered
+    });
+
+    res.json({ message: 'Appointment booked successfully', visit });
+  } catch (err) {
+    console.error('Booking error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
 
 module.exports = router;

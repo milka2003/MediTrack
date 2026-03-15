@@ -12,7 +12,8 @@ import {
 import {
   Dashboard as DashboardIcon,
   Psychology as PsychologyIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Mood as MoodIcon
 } from '@mui/icons-material';
 import api from '../api/client';
 import { useNavigate } from 'react-router-dom';
@@ -104,7 +105,8 @@ export default function MLDashboard() {
 
   const menuItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/lab-dashboard' },
-    { label: 'ML Models', icon: <PsychologyIcon />, path: '/ml-dashboard' }
+    { label: 'ML Models', icon: <PsychologyIcon />, path: '/ml-dashboard' },
+    { label: 'Disease Prediction', icon: <MoodIcon />, path: '/disease-prediction' }
   ];
 
   if (loading) {
@@ -205,7 +207,7 @@ export default function MLDashboard() {
           </Alert>
         )}
 
-        {/* What We're Predicting - Explanation Card */}
+        {/* Model Purpose */}
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
             Model Purpose
@@ -213,6 +215,35 @@ export default function MLDashboard() {
           <Typography variant="body2" sx={{ mb: 2, lineHeight: 1.6 }}>
             These ML models predict whether a patient's lab results are normal or abnormal based on three key laboratory values: Hemoglobin, White Blood Cell (WBC) count, and Glucose level. The system helps clinical staff quickly identify cases requiring medical attention.
           </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            Specialized Prediction Services
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ backgroundColor: '#f5f5f5' }}>
+                <CardContent>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <MoodIcon color="primary" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h6">Depression Risk Prediction</Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        AI-powered analysis of laboratory values and PHQ-9 survey responses to estimate depression risk level.
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Button 
+                    variant="contained" 
+                    sx={{ mt: 2 }} 
+                    onClick={() => navigate('/disease-prediction', { state: { activeTab: 2 } })}
+                    fullWidth
+                  >
+                    Launch Depression Analysis
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Paper>
 
         {/* Training Status */}
