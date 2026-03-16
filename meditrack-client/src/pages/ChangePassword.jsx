@@ -16,7 +16,7 @@ function ChangePassword() {
       const token = localStorage.getItem("token");
 
       await axios.post(
-        "http://localhost:5000/api/auth/change-password",
+        "https://meditrack-1-jp17.onrender.com/api/auth/change-password",
         { newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

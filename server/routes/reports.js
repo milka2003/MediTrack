@@ -521,7 +521,7 @@ router.get(
   async (req, res) => {
     try {
       const axios = require("axios");
-      const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5000";
+      const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "https://meditrack-1-jp17.onrender.com";
 
       // Get metrics from Python ML service
       const response = await axios.get(`${ML_SERVICE_URL}/api/ml/metrics`);

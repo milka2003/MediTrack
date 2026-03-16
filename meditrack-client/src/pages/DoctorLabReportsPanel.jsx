@@ -42,7 +42,7 @@ export default function DoctorLabReportsPanel() {
   }, [data.page, load]);
 
   const openReport = (reportUrl) => {
-    const base = 'http://localhost:5000/api';
+    const base = 'https://meditrack-1-jp17.onrender.com/api';
     window.open(`${base}${reportUrl}`, '_blank');
   };
 

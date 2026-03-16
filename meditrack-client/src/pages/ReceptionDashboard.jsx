@@ -109,7 +109,7 @@ function AddPatientForm() {
       }
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://localhost:5000/api/reception/add-patient",
+        "https://meditrack-1-jp17.onrender.com/api/reception/add-patient",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -287,7 +287,7 @@ function ManagePatientAccess() {
       setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        "http://localhost:5000/api/reception/patients-without-access",
+        "https://meditrack-1-jp17.onrender.com/api/reception/patients-without-access",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setPatients(res.data.patients || []);
@@ -309,7 +309,7 @@ function ManagePatientAccess() {
       setEnableLoading(patientId);
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://localhost:5000/api/reception/enable-patient-access",
+        "https://meditrack-1-jp17.onrender.com/api/reception/enable-patient-access",
         { patientId },
         { headers: { Authorization: `Bearer ${token}` } }
       );

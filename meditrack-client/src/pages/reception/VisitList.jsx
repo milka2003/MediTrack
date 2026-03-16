@@ -23,7 +23,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: "https://meditrack-1-jp17.onrender.com/api",
 });
 // Always attach latest token
 api.interceptors.request.use((config) => {
