@@ -10,7 +10,7 @@ const Doctor = require('../models/Doctor');
 const Visit = require('../models/Visit');
 const { authAny, requireStaff } = require('../middleware/auth');
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://meditrack-1-jp17.onrender.com';
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5000';
 
 /**
  * Train ML models on historical lab data

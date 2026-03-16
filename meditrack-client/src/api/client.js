@@ -1,7 +1,7 @@
 // src/api/client.js
 import axios from 'axios';
 
-export const API_URL = 'https://meditrack-1-jp17.onrender.com/api';
+export const API_URL = process.env.REACT_APP_API_URL || 'https://meditrack-01.onrender.com/api';
 
 const api = axios.create({ baseURL: API_URL });
 

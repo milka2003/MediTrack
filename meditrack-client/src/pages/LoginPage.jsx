@@ -16,7 +16,7 @@ import {
   VisibilityOutlined,
   VisibilityOffOutlined,
 } from "@mui/icons-material";
-import axios from "axios";
+import api, { API_URL } from "../api/client";
 import loginBg from "../assets/loginbg.jpg";
 
 function LoginPage() {
@@ -34,7 +34,7 @@ function LoginPage() {
       if (!identifier.trim() || !password.trim()) {
         return setError("Username/Email and Password are required");
       }
-      const res = await axios.post("https://meditrack-1-jp17.onrender.com/api/auth/staff-login", {
+      const res = await api.post("/auth/staff-login", {
         identifier: identifier.trim(),
         password: password.trim(),
       });

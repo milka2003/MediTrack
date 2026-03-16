@@ -107,11 +107,9 @@ function AddPatientForm() {
         const [dd, mm, yyyy] = payload.dob.split('-');
         payload.dob = `${yyyy}-${mm}-${dd}`;
       }
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "https://meditrack-1-jp17.onrender.com/api/reception/add-patient",
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.post(
+        "/reception/add-patient",
+        payload
       );
       
       // Store registration data and open dialog
@@ -285,11 +283,7 @@ function ManagePatientAccess() {
   const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        "https://meditrack-1-jp17.onrender.com/api/reception/patients-without-access",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.get("/reception/patients-without-access");
       setPatients(res.data.patients || []);
     } catch (err) {
       openSnack("error", "Failed to fetch patients");
@@ -307,11 +301,9 @@ function ManagePatientAccess() {
   const handleEnableAccess = async (patientId) => {
     try {
       setEnableLoading(patientId);
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "https://meditrack-1-jp17.onrender.com/api/reception/enable-patient-access",
-        { patientId },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.post(
+        "/reception/enable-patient-access",
+        { patientId }
       );
 
       // Show password dialog

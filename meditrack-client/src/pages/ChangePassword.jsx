@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, TextField, Button, Typography } from "@mui/material";
-import axios from "axios";
+import api from "../api/client";
 
 function ChangePassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -13,12 +13,9 @@ function ChangePassword() {
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      await axios.post(
-        "https://meditrack-1-jp17.onrender.com/api/auth/change-password",
-        { newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(
+        "/auth/change-password",
+        { newPassword }
       );
 
       // After success → go to login again

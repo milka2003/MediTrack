@@ -9,17 +9,7 @@ import {
   Button,
   Stack,
 } from "@mui/material";
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: "https://meditrack-1-jp17.onrender.com/api",
-});
-// Always attach latest token
-api.interceptors.request.use((config) => {
-  const t = localStorage.getItem("token");
-  if (t) config.headers.Authorization = `Bearer ${t}`;
-  return config;
-});
+import api from "../../api/client";
 
 export default function CreateVisit() {
   const [patientSearch, setPatientSearch] = useState("");

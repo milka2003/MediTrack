@@ -1,7 +1,7 @@
 // src/pages/DoctorLabReportsPanel.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
-import api from '../api/client';
+import api, { API_URL } from '../api/client';
 
 export default function DoctorLabReportsPanel() {
   const [q, setQ] = useState('');
@@ -42,8 +42,7 @@ export default function DoctorLabReportsPanel() {
   }, [data.page, load]);
 
   const openReport = (reportUrl) => {
-    const base = 'https://meditrack-1-jp17.onrender.com/api';
-    window.open(`${base}${reportUrl}`, '_blank');
+    window.open(`${API_URL}${reportUrl}`, '_blank');
   };
 
   return (

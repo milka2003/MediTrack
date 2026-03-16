@@ -18,7 +18,7 @@ import {
   FormControl,
   InputLabel,
 } from "@mui/material";
-import axios from "axios";
+import api from "../../api/client";
 
 function ShiftManagement() {
   const [tabIndex, setTabIndex] = useState(0);
@@ -62,10 +62,7 @@ function ShiftManagement() {
 
   const fetchStaff = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("https://meditrack-1-jp17.onrender.com/api/admin/staff", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/admin/staff");
       setStaffList(res.data.users || []);
     } catch (err) {
       console.error("Error fetching staff:", err);
@@ -74,10 +71,7 @@ function ShiftManagement() {
 
   const fetchShiftTemplates = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("https://meditrack-1-jp17.onrender.com/api/admin/shift-templates", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/admin/shift-templates");
       setShiftTemplates(res.data.shiftTemplates || []);
     } catch (err) {
       console.error("Error fetching shift templates:", err);
@@ -86,10 +80,7 @@ function ShiftManagement() {
 
   const fetchShiftMappings = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("https://meditrack-1-jp17.onrender.com/api/admin/staff-shift-mappings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/admin/staff-shift-mappings");
       setShiftMappings(res.data.mappings || []);
     } catch (err) {
       console.error("Error fetching shift mappings:", err);
@@ -136,16 +127,14 @@ function ShiftManagement() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        "https://meditrack-1-jp17.onrender.com/api/admin/shift-templates",
+      await api.post(
+        "/admin/shift-templates",
         {
           name: templateName,
           startTime: templateStartTime,
           endTime: templateEndTime,
           nextTemplateId: nextTemplateId || null,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+        }
       );
 
       setMessage("✅ Shift template created successfully!");
@@ -165,10 +154,7 @@ function ShiftManagement() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`https://meditrack-1-jp17.onrender.com/api/admin/shift-templates/${templateId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/admin/shift-templates/${templateId}`);
 
       setMessage("✅ Shift template deleted successfully!");
       fetchShiftTemplates();
@@ -193,9 +179,8 @@ function ShiftManagement() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        "https://meditrack-1-jp17.onrender.com/api/admin/staff-shift-mappings",
+      await api.post(
+        "/admin/staff-shift-mappings",
         {
           staffId: selectedStaff._id,
           staffName: selectedStaff.name,
@@ -204,8 +189,7 @@ function ShiftManagement() {
           effectiveFrom: effectiveFrom,
           effectiveTo: effectiveTo || null,
           rotationType: rotationType,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+        }
       );
 
       setMessage("✅ Staff shift mapping created successfully!");
@@ -228,10 +212,7 @@ function ShiftManagement() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`https://meditrack-1-jp17.onrender.com/api/admin/staff-shift-mappings/${mappingId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/admin/staff-shift-mappings/${mappingId}`);
 
       setMessage("✅ Staff shift mapping removed successfully!");
       fetchShiftMappings();
