@@ -1,12 +1,5 @@
 const CACHE_NAME = 'meditrack-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/static/js/bundle.js',
-  '/favicon.ico',
-  '/logo192.png',
-  '/manifest.json'
-];
+const urlsToCache = [];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
