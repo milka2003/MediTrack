@@ -14,8 +14,7 @@ import {
   CardContent,
   Divider
 } from '@mui/material';
-import axios from 'axios';
-import { API_URL } from '../../api/client';
+import api from '../../api/client';
 
 function BookAppointment() {
   const [departments, setDepartments] = useState([]);
@@ -25,6 +24,15 @@ function BookAppointment() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [tokenInfo, setTokenInfo] = useState(null);
   
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [hours, minutes] = timeStr.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayHours = h % 12 || 12;
+    return `${displayHours}:${minutes} ${ampm}`;
+  };
+
   const [form, setForm] = useState({
     departmentId: '',
     doctorId: '',
@@ -38,10 +46,7 @@ function BookAppointment() {
   const fetchDepartments = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/patient-portal/departments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/patient-portal/departments');
       setDepartments(response.data);
     } catch (err) {
       console.error(err);
@@ -53,10 +58,7 @@ function BookAppointment() {
 
   const fetchDoctors = async (deptId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/patient-portal/doctors?departmentId=${deptId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`/patient-portal/doctors?departmentId=${deptId}`);
       setDoctors(response.data);
     } catch (err) {
       console.error(err);
@@ -81,10 +83,7 @@ function BookAppointment() {
     setTokenInfo(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/patient-portal/book-appointment`, form, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post('/patient-portal/book-appointment', form);
       
       setMessage({ type: 'success', text: 'Appointment booked successfully!' });
       setTokenInfo(response.data.visit);
@@ -105,21 +104,34 @@ function BookAppointment() {
     return new Date().toISOString().split('T')[0];
   };
 
+  const getMaxDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  };
+
   const getSelectedDoctorSchedule = () => {
     const doctor = doctors.find(d => d._id === form.doctorId);
     if (!doctor || !doctor.shiftMapping || !doctor.shiftMapping.shiftTemplateId) return null;
     
     const { name, startTime, endTime } = doctor.shiftMapping.shiftTemplateId;
+    const availableDays = doctor.schedule?.map(s => s.day).join(', ');
+
     return (
-      <Box sx={{ mt: 1, p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1, borderLeft: '4px solid #1976d2' }}>
+      <Box sx={{ mt: 1, p: 1.5, bgcolor: '#f0f7ff', borderRadius: 1, borderLeft: '4px solid #1976d2' }}>
         <Typography variant="caption" sx={{ display: 'block', fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase' }}>
-          Doctor's Shift Schedule
+          Doctor Availability
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {name} Shift: {startTime} - {endTime}
         </Typography>
+        {availableDays && (
+          <Typography variant="body2" sx={{ mt: 0.5, color: '#2e7d32', fontWeight: 500 }}>
+            Available on: {availableDays}
+          </Typography>
+        )}
         {doctor.shiftMapping.rotationType !== 'None' && (
-          <Typography variant="caption" color="primary">
+          <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
             * This doctor follows a {doctor.shiftMapping.rotationType.toLowerCase()} rotation schedule.
           </Typography>
         )}
@@ -192,7 +204,10 @@ function BookAppointment() {
                   required
                   fullWidth
                   InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: getMinDate() }}
+                  inputProps={{ 
+                    min: getMinDate(),
+                    max: getMaxDate()
+                  }}
                 />
 
                 <Button 
@@ -240,15 +255,24 @@ function BookAppointment() {
                   </Typography>
                   
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Doctor:</Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body1" gutterBottom>
                     {doctors.find(d => d._id === tokenInfo.doctorId)?.user?.name ? 
                       `Dr. ${doctors.find(d => d._id === tokenInfo.doctorId).user.name}` : 
                       'Assigned Doctor'}
                   </Typography>
+
+                  {tokenInfo.expectedConsultationTime && (
+                    <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Expected Consultation Time:</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        {formatTime(tokenInfo.expectedConsultationTime)}
+                      </Typography>
+                    </>
+                  )}
                 </Box>
                 
                 <Alert severity="info" sx={{ mt: 3, textAlign: 'left' }}>
-                  Please arrive 30 minutes before your consultation time.
+                  Please arrive 30 minutes before your consultation {tokenInfo.expectedConsultationTime ? `at ${formatTime(tokenInfo.expectedConsultationTime)}` : 'time'}.
                 </Alert>
               </CardContent>
             </Card>

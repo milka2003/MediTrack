@@ -5,8 +5,22 @@ import {
   Alert, Card, CardContent, Stepper, Step, StepLabel,
   FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Stack, Chip
 } from '@mui/material';
-import { ArrowBack, ArrowForward, Analytics } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, Analytics, Download as DownloadIcon } from '@mui/icons-material';
 import api from '../api/client';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+const REFERENCE_RANGES = {
+  LBXWBCSI: '4.5 - 11.0 10³/μL',
+  LBXRBCSI: '4.50 - 5.90 10⁶/μL',
+  LBXHGB: '13.5 - 17.5 g/dL',
+  LBXPLTSI: '150 - 450 10³/μL',
+  LBXGLU: '70 - 100 mg/dL',
+  LBXSAL: '3.5 - 5.0 g/dL',
+  LBXSCR: '0.6 - 1.2 mg/dL',
+  LBXHSCRP: '< 1.0 mg/L',
+  LBXIRN: '60 - 170 μg/dL'
+};
 
 const PHQ9_QUESTIONS = [
   "Little interest or pleasure in doing things",
@@ -94,6 +108,102 @@ export default function DepressionRiskPrediction() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadReport = () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header
+    doc.setFillColor(63, 81, 181); // Indigo color for mental health
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.text('Holy Cross Hospital', 15, 20);
+    doc.setFontSize(12);
+    doc.text('Depression Risk Analysis Report', 15, 30);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 60, 20);
+
+    // 1. Analysis Summary
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(16);
+    doc.text('1. Analysis Summary', 15, 55);
+    doc.setFontSize(12);
+    doc.text(`Risk Level: ${result.risk_level.toUpperCase()}`, 15, 65);
+    doc.text(`Risk Probability: ${(result.probability * 100).toFixed(1)}%`, 15, 75);
+    doc.text(`Model Confidence: ${(result.confidence * 100).toFixed(1)}%`, 15, 85);
+
+    // 2. Lab Findings
+    doc.setFontSize(16);
+    doc.text('2. Laboratory Findings', 15, 100);
+    
+    const labTableData = LAB_FEATURES.map(f => [
+      f.name,
+      labData[f.id],
+      REFERENCE_RANGES[f.id] || 'N/A'
+    ]);
+
+    autoTable(doc, {
+      startY: 105,
+      head: [['Parameter', 'Value', 'Reference Range']],
+      body: labTableData,
+      headStyles: { fillColor: [74, 85, 104] },
+      theme: 'grid',
+      margin: { left: 15, right: 15 }
+    });
+
+    // 3. PHQ-9 Responses
+    let nextY = doc.lastAutoTable.finalY + 15;
+    if (nextY > 250) {
+      doc.addPage();
+      nextY = 20;
+    }
+    
+    doc.setFontSize(16);
+    doc.text('3. PHQ-9 Screening Responses', 15, nextY);
+    
+    const phqTableData = PHQ9_QUESTIONS.map((q, idx) => {
+      const responses = ["Not at all", "Several days", "More than half", "Nearly every day"];
+      return [idx + 1, q, responses[parseInt(phqData[idx])] || "N/A"];
+    });
+
+    autoTable(doc, {
+      startY: nextY + 5,
+      head: [['#', 'Question', 'Response']],
+      body: phqTableData,
+      headStyles: { fillColor: [121, 134, 203] },
+      columnStyles: {
+        1: { cellWidth: 100 }
+      },
+      theme: 'striped',
+      margin: { left: 15, right: 15 }
+    });
+
+    // 4. Clinical Interpretation
+    nextY = doc.lastAutoTable.finalY + 15;
+    if (nextY > 250) {
+      doc.addPage();
+      nextY = 20;
+    }
+    doc.setFontSize(16);
+    doc.text('4. Clinical Interpretation', 15, nextY);
+    doc.setFontSize(11);
+    const interpretation = result.depression_risk 
+      ? "The model suggests a potential risk of depression. Clinical follow-up and professional mental health assessment are recommended."
+      : "The model suggests a low risk of clinical depression based on the provided parameters.";
+    
+    const splitInterpretation = doc.splitTextToSize(interpretation, pageWidth - 30);
+    doc.text(splitInterpretation, 15, nextY + 10);
+
+    // Footer
+    const finalY = doc.lastAutoTable?.finalY || 250;
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Note: This is an AI-generated report for diagnostic research purposes. Please consult with a psychiatrist or clinical psychologist.', 15, 280);
+
+    doc.save(`Depression_Risk_Report_${new Date().getTime()}.pdf`);
   };
 
   const getRiskColor = (level) => {
@@ -235,7 +345,15 @@ export default function DepressionRiskPrediction() {
             </CardContent>
           </Card>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+            <Button 
+              variant="contained" 
+              color="primary"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadReport}
+            >
+              Download Detailed Report
+            </Button>
             <Button 
               variant="outlined" 
               onClick={() => {

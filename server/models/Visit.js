@@ -31,6 +31,7 @@ const visitSchema = new mongoose.Schema({
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
   doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
   tokenNumber: { type: Number, required: true },
+  expectedConsultationTime: { type: String }, // Calculated as startTime + (token - 1) * 15 mins
   appointmentDate: { type: Date, required: true }, // date portion used for per-day token
   slot: slotSchema, // optional — if receptionist picks a slot
   status: { 
@@ -47,5 +48,17 @@ const visitSchema = new mongoose.Schema({
 
   createdAt: { type: Date, default: Date.now }
 });
+
+// Compound unique index to prevent duplicate active appointments for same patient-doctor-date
+// We use a sparse partial index that only applies to active/Registered status visits
+visitSchema.index(
+  { patientId: 1, doctorId: 1, appointmentDate: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      status: { $in: ['Registered', 'open', 'VitalsCompleted', 'ReadyForConsultation', 'InConsultation'] } 
+    } 
+  }
+);
 
 module.exports = mongoose.model('Visit', visitSchema);

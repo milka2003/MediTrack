@@ -35,6 +35,15 @@ const formatDate = (dateString) => {
   });
 };
 
+const formatTime = (timeStr) => {
+  if (!timeStr) return 'N/A';
+  const [hours, minutes] = timeStr.split(':');
+  const h = parseInt(hours);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayHours = h % 12 || 12;
+  return `${displayHours}:${minutes} ${ampm}`;
+};
+
 function Visits() {
   const { selectedVisitId, setSelectedVisitId } = useOutletContext();
   const navigate = useNavigate();
@@ -143,6 +152,7 @@ function Visits() {
               <TableRow>
                 <TableCell><Typography variant="subtitle2">Visit #</Typography></TableCell>
                 <TableCell><Typography variant="subtitle2">Date</Typography></TableCell>
+                <TableCell><Typography variant="subtitle2">Consultation Time</Typography></TableCell>
                 <TableCell><Typography variant="subtitle2">Department</Typography></TableCell>
                 <TableCell><Typography variant="subtitle2">Doctor</Typography></TableCell>
                 <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
@@ -159,6 +169,7 @@ function Visits() {
                 >
                   <TableCell>{visit.visitNumber}</TableCell>
                   <TableCell>{formatDate(visit.visitDate)}</TableCell>
+                  <TableCell>{formatTime(visit.expectedConsultationTime)}</TableCell>
                   <TableCell>{visit.department?.name || 'N/A'}</TableCell>
                   <TableCell>{visit.doctor?.name || 'Not assigned'}</TableCell>
                   <TableCell>{getStatusChip(visit.status)}</TableCell>
@@ -203,6 +214,13 @@ function Visits() {
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Visit Date</Typography>
                 <Typography variant="body1" gutterBottom>{formatDate(selectedVisitDetails.visitDate)}</Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Consultation Time</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }} gutterBottom>
+                  {formatTime(selectedVisitDetails.expectedConsultationTime)}
+                </Typography>
               </Grid>
               
               <Grid item xs={12}>

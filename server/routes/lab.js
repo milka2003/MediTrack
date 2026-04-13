@@ -264,20 +264,28 @@ router.get('/report/:consultationId/:itemIndex', authAny, async (req, res) => {
     const htmlContent = generateLabReportHTML(consult, normalizedRequest, idx);
 
     // Generate PDF
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.setContent(htmlContent);
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
-    });
-    await browser.close();
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' }
+      });
 
-    // Set headers for PDF download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="lab-report-${consult.patientId?.opNumber}-${labRequest.testName}.pdf"`);
-    res.send(pdfBuffer);
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="lab-report-${consult.patientId?.opNumber || 'report'}-${(labRequest.testName || 'test').replace(/\s+/g, '_')}.pdf"`);
+      res.send(pdfBuffer);
+
+    } finally {
+      if (browser) await browser.close();
+    }
 
   } catch (e) {
     console.error(e);

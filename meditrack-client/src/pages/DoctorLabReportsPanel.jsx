@@ -42,7 +42,9 @@ export default function DoctorLabReportsPanel() {
   }, [data.page, load]);
 
   const openReport = (reportUrl) => {
-    window.open(`${API_URL}${reportUrl}`, '_blank');
+    const token = localStorage.getItem('token');
+    const url = `${API_URL}${reportUrl}?token=${token}`;
+    window.open(url, '_blank');
   };
 
   return (

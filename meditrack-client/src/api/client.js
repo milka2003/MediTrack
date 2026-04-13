@@ -1,7 +1,18 @@
 // src/api/client.js
 import axios from 'axios';
 
-export const API_URL = process.env.REACT_APP_API_URL || 'https://meditrack-01.onrender.com/api';
+const isLocalhost = Boolean(
+  window.location.hostname === 'localhost' ||
+    // [::1] is the IPv6 localhost address.
+    window.location.hostname === '[::1]' ||
+    // 127.0.0.0/8 are considered localhost for IPv4.
+    window.location.hostname.match(
+      /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
+    )
+);
+const defaultUrl = isLocalhost ? 'http://localhost:5000/api' : 'https://meditrack-02.onrender.com/api';
+
+export const API_URL = process.env.REACT_APP_API_URL || defaultUrl;
 
 const api = axios.create({ baseURL: API_URL });
 

@@ -73,6 +73,7 @@ router.get('/visits', authAny, requirePatient, async (req, res) => {
         _id: visit._id,
         visitNumber: visit.tokenNumber, // token number is used as visit number
         visitDate: visit.appointmentDate,
+        expectedConsultationTime: visit.expectedConsultationTime,
         department: visit.departmentId,
         doctor: visit.doctorId ? { name: visit.doctorId.user?.name || 'Not assigned' } : { name: 'Not assigned' },
         status: visit.status,
@@ -398,6 +399,7 @@ router.get('/visits/:visitId', authAny, requirePatient, async (req, res) => {
       _id: visit._id,
       visitNumber: visit.tokenNumber,
       visitDate: visit.appointmentDate,
+      expectedConsultationTime: visit.expectedConsultationTime,
       department: visit.departmentId,
       doctor: visit.doctorId ? { name: visit.doctorId.user?.name || 'Not assigned' } : { name: 'Not assigned' },
       status: visit.status,
@@ -589,16 +591,23 @@ router.get('/lab-reports/:reportId/pdf', authAny, requirePatient, async (req, re
     const html = generateLabReportHTML(consultation, labRequest);
     
     // Use Puppeteer to generate PDF
-    const browser = await puppeteer.launch({ headless: 'new' });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', margin: { top: 10, bottom: 10, left: 10, right: 10 } });
-    await browser.close();
-    
-    // Set headers for PDF download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="lab-report-${consultation.patientId?.opNumber}-${labRequest.testName}.pdf"`);
-    res.send(pdfBuffer);
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({ format: 'A4', margin: { top: 10, bottom: 10, left: 10, right: 10 } });
+      
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="lab-report-${consultation.patientId?.opNumber || 'report'}-${(labRequest.testName || 'test').replace(/\s+/g, '_')}.pdf"`);
+      res.send(pdfBuffer);
+    } finally {
+      if (browser) await browser.close();
+    }
     
   } catch (err) {
     console.error(err);
@@ -939,8 +948,12 @@ router.post('/book-appointment', authAny, requirePatient, async (req, res) => {
     const doctor = await Doctor.findById(doctorId).populate('user');
     if (!doctor || !doctor.active) return res.status(400).json({ message: 'Doctor not found or inactive' });
 
-    // Validate doctor shift for the given date
+    // Ensure the date is treated as the start of the day in local time for calculations
+    // This is safer for matching date-only appointments
     const bookingDate = new Date(date);
+    bookingDate.setHours(0, 0, 0, 0);
+
+    // Validate doctor shift for the given date
     const shiftMapping = await StaffShiftMapping.findOne({
       staffId: doctor.user._id,
       isActive: true,
@@ -949,12 +962,23 @@ router.post('/book-appointment', authAny, requirePatient, async (req, res) => {
         { effectiveTo: null },
         { effectiveTo: { $gte: bookingDate } }
       ]
-    });
+    }).populate('shiftTemplateId');
 
     if (!shiftMapping) {
       return res.status(400).json({ 
         message: 'This doctor is not scheduled for a shift on the selected date.' 
       });
+    }
+
+    // Also check if the doctor has a specific schedule for this day of the week
+    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const doctorDaySchedule = doctor.schedule?.find(s => s.day === dayOfWeek);
+    if (doctor.schedule && doctor.schedule.length > 0) {
+      if (!doctorDaySchedule) {
+        return res.status(400).json({ 
+          message: `Dr. ${doctor.user.name} is not available on ${dayOfWeek}s.` 
+        });
+      }
     }
 
     // Validate date
@@ -964,27 +988,133 @@ router.post('/book-appointment', authAny, requirePatient, async (req, res) => {
       return res.status(400).json({ message: 'Cannot book past dates' });
     }
 
+    // Limit booking into the future (e.g., max 30 days)
+    const maxFutureDate = new Date(today);
+    maxFutureDate.setDate(today.getDate() + 30);
+    if (bookingDate > maxFutureDate) {
+      return res.status(400).json({ message: 'Appointments can only be booked up to 30 days in advance.' });
+    }
+
+    // Check for duplicate booking (same patient, doctor, date)
+    const startDate = new Date(bookingDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(bookingDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    let existingBooking = null;
+    try {
+      existingBooking = await Visit.findOne({
+        patientId: patient._id,
+        doctorId: doctorId,
+        appointmentDate: { $gte: startDate, $lte: endDate },
+        status: { $in: ['Registered', 'VitalsCompleted', 'ReadyForConsultation', 'InConsultation', 'open'] }
+      });
+    } catch (findErr) {
+      console.error('Error finding existing booking:', findErr);
+    }
+
+    if (existingBooking) {
+      console.log('Duplicate booking detected:', {
+        existingId: existingBooking._id,
+        patientId: existingBooking.patientId,
+        doctorId: existingBooking.doctorId,
+        date: existingBooking.appointmentDate.toISOString()
+      });
+      return res.status(400).json({ 
+        message: 'You already have an active appointment with this doctor on the selected date.' 
+      });
+    }
+
+    // Check doctor's capacity for the day
+    const maxPatients = (doctorDaySchedule && doctorDaySchedule.maxPatients > 0) ? doctorDaySchedule.maxPatients : 30; // Default limit if not specified
+
+    const totalBookingsForDoctor = await Visit.countDocuments({
+      doctorId: doctorId,
+      appointmentDate: { $gte: startDate, $lte: endDate },
+      status: { $nin: ['Cancelled'] }
+    });
+
+    if (totalBookingsForDoctor >= maxPatients) {
+      return res.status(400).json({ 
+        message: `Doctor Dr. ${doctor.user.name} has reached the maximum number of appointments for this date.` 
+      });
+    }
+
+    // Ensure department matches doctor's department
+    if (departmentId && departmentId.toString() !== doctor.department.toString()) {
+      return res.status(400).json({ message: 'Selected department does not match doctor specialization.' });
+    }
+
     // Handle token generation (per doctor per day)
     const dateKey = new Date(date).toISOString().slice(0, 10);
     const counterKey = `token_${doctorId}_${dateKey}`;
     const seq = await nextSeq(counterKey);
 
+    // Calculate expected consultation time
+    // Prioritize shift template startTime (active assignment) over legacy doctor schedule
+    let startTimeStr = shiftMapping.shiftTemplateId?.startTime || doctorDaySchedule?.startTime || "09:00";
+    
+    // Simple calculation: startTime + (seq - 1) * 15 minutes
+    const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+    const totalMinutes = (startHours * 60) + startMinutes + ((seq - 1) * 15);
+    const expectedHours = Math.floor(totalMinutes / 60) % 24;
+    const expectedMinutes = totalMinutes % 60;
+    const expectedTime = `${String(expectedHours).padStart(2, '0')}:${String(expectedMinutes).padStart(2, '0')}`;
+
     // Create visit/appointment
-    const visit = await Visit.create({
-      patientId: patient._id,
-      opNumber: patient.opNumber,
-      departmentId: departmentId || doctor.department,
-      doctorId,
-      tokenNumber: seq,
-      appointmentDate: new Date(date),
-      slot: slot || undefined,
-      status: 'Registered' // Initially Registered
-    });
+    let visit;
+    try {
+      visit = await Visit.create({
+        patientId: patient._id,
+        opNumber: patient.opNumber,
+        departmentId: departmentId || doctor.department,
+        doctorId,
+        tokenNumber: seq,
+        expectedConsultationTime: expectedTime,
+        appointmentDate: bookingDate,
+        slot: slot || undefined,
+        status: 'Registered' // Initially Registered
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000 || createErr.message.includes('duplicate key')) {
+        return res.status(400).json({ 
+          message: 'You already have an active appointment with this doctor on the selected date.' 
+        });
+      }
+      throw createErr;
+    }
 
     res.json({ message: 'Appointment booked successfully', visit });
   } catch (err) {
-    console.error('Booking error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.log('Booking error caught:', err?.name, err?.code, err?.message);
+    
+    if (!err) {
+      return res.status(500).json({ message: 'Unknown server error during booking' });
+    }
+
+    // Check for MongoDB duplicate key error (direct or wrapped)
+    const isDuplicate = err.code === 11000 || 
+                       (err.message && (err.message.includes('E11000') || err.message.includes('duplicate key'))) || 
+                       (err.name === 'MongoServerError' && err.code === 11000);
+
+    if (isDuplicate) {
+      return res.status(400).json({ 
+        message: 'You already have an active appointment with this doctor on the selected date.' 
+      });
+    }
+
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Validation failed: ' + err.message });
+    }
+
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid ID format: ' + err.value });
+    }
+    
+    console.error('Full booking error:', err);
+    res.status(500).json({ 
+      message: err.message || 'Server error during booking' 
+    });
   }
 });
 

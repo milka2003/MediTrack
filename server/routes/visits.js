@@ -192,6 +192,31 @@ router.patch('/:id/status', authAny, requireStaff(['Reception','Admin','Billing'
 router.put('/:id/vitals', authAny, requireStaff(['Nurse','Admin']), async (req, res) => {
   try {
     const { bp, temperature, oxygen, weight } = req.body;
+    
+    // Server-side validation
+    if (!bp || !temperature || !oxygen || !weight) {
+      return res.status(400).json({ message: 'All vitals fields are required' });
+    }
+
+    if (!/^\d{2,3}\/\d{2,3}$/.test(bp)) {
+      return res.status(400).json({ message: 'Invalid BP format. Expected e.g. 120/80' });
+    }
+
+    const t = parseFloat(temperature);
+    if (isNaN(t) || t < 80 || t > 115) {
+      return res.status(400).json({ message: 'Invalid temperature (80-115°F)' });
+    }
+
+    const o = parseFloat(oxygen);
+    if (isNaN(o) || o < 0 || o > 100) {
+      return res.status(400).json({ message: 'Invalid oxygen level (0-100%)' });
+    }
+
+    const w = parseFloat(weight);
+    if (isNaN(w) || w <= 0 || w > 500) {
+      return res.status(400).json({ message: 'Invalid weight (0.1 - 500 kg)' });
+    }
+
     const vitals = { bp, temperature, oxygen, weight, recordedAt: new Date() };
     const visit = await Visit.findById(req.params.id);
     if (!visit) return res.status(404).json({ message: 'Visit not found' });

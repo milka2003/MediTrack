@@ -22,19 +22,10 @@ export default function CompletedTestsReport() {
   useEffect(() => { load(); }, []);
 
   // Download generated PDF report for a specific completed test
-  const downloadReport = async (consultationId, itemIndex) => {
-    try {
-      const response = await api.get(`/lab/report/${consultationId}/${itemIndex}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'lab-report.pdf');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (e) {
-      setMessage('Failed to download report');
-    }
+  const downloadReport = (consultationId, itemIndex) => {
+    const token = localStorage.getItem('token');
+    const url = `${api.defaults.baseURL}/lab/report/${consultationId}/${itemIndex}?token=${token}`;
+    window.open(url, '_blank');
   };
 
   return (

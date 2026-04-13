@@ -83,6 +83,7 @@ export default function NurseDashboard() {
     oxygen: "",
     weight: "",
   });
+  const [errors, setErrors] = useState({});
   const [markingReady, setMarkingReady] = useState(null);
 
   const loadVisits = useCallback(async () => {
@@ -132,11 +133,47 @@ export default function NurseDashboard() {
       oxygen: v.vitals?.oxygen || "",
       weight: v.vitals?.weight || "",
     });
+    setErrors({});
     setVitalsDialog(true);
   };
 
   const handleSaveVitals = async () => {
     if (!activeVisit) return;
+    
+    // Validation
+    const newErrors = {};
+    if (!vitals.bp) {
+      newErrors.bp = "Blood pressure is required";
+    } else if (!/^\d{2,3}\/\d{2,3}$/.test(vitals.bp)) {
+      newErrors.bp = "Invalid format (e.g. 120/80)";
+    }
+
+    if (!vitals.temperature) {
+      newErrors.temperature = "Temperature is required";
+    } else if (isNaN(vitals.temperature) || vitals.temperature < 80 || vitals.temperature > 115) {
+      newErrors.temperature = "Invalid temperature (80-115°F)";
+    }
+
+    if (!vitals.oxygen) {
+      newErrors.oxygen = "Oxygen level is required";
+    } else if (isNaN(vitals.oxygen) || vitals.oxygen < 0 || vitals.oxygen > 100) {
+      newErrors.oxygen = "Invalid oxygen level (0-100%)";
+    }
+
+    if (!vitals.weight) {
+      newErrors.weight = "Weight is required";
+    } else {
+      const w = parseFloat(vitals.weight);
+      if (isNaN(w) || w <= 0 || w > 500) {
+        newErrors.weight = "Invalid weight (0.1 - 500 kg)";
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     try {
       await api.put(`/visits/${activeVisit._id}/vitals`, vitals);
       setMessageType("success");
@@ -557,7 +594,12 @@ export default function NurseDashboard() {
               label="Blood Pressure"
               placeholder="120/80"
               value={vitals.bp}
-              onChange={(e) => setVitals({ ...vitals, bp: e.target.value })}
+              onChange={(e) => {
+                setVitals({ ...vitals, bp: e.target.value });
+                if (errors.bp) setErrors({ ...errors, bp: null });
+              }}
+              error={!!errors.bp}
+              helperText={errors.bp}
               fullWidth
               variant="filled"
             />
@@ -565,7 +607,12 @@ export default function NurseDashboard() {
               label="Temperature"
               placeholder="98.6 F"
               value={vitals.temperature}
-              onChange={(e) => setVitals({ ...vitals, temperature: e.target.value })}
+              onChange={(e) => {
+                setVitals({ ...vitals, temperature: e.target.value });
+                if (errors.temperature) setErrors({ ...errors, temperature: null });
+              }}
+              error={!!errors.temperature}
+              helperText={errors.temperature}
               fullWidth
               variant="filled"
             />
@@ -573,15 +620,27 @@ export default function NurseDashboard() {
               label="Oxygen Saturation (SpO2)"
               placeholder="98%"
               value={vitals.oxygen}
-              onChange={(e) => setVitals({ ...vitals, oxygen: e.target.value })}
+              onChange={(e) => {
+                setVitals({ ...vitals, oxygen: e.target.value });
+                if (errors.oxygen) setErrors({ ...errors, oxygen: null });
+              }}
+              error={!!errors.oxygen}
+              helperText={errors.oxygen}
               fullWidth
               variant="filled"
             />
             <TextField
-              label="Weight"
-              placeholder="65 kg"
+              label="Weight (kg)"
+              placeholder="65"
+              type="number"
+              inputProps={{ step: "0.1", min: "0.1", max: "500" }}
               value={vitals.weight}
-              onChange={(e) => setVitals({ ...vitals, weight: e.target.value })}
+              onChange={(e) => {
+                setVitals({ ...vitals, weight: e.target.value });
+                if (errors.weight) setErrors({ ...errors, weight: null });
+              }}
+              error={!!errors.weight}
+              helperText={errors.weight || "Weight in kilograms"}
               fullWidth
               variant="filled"
             />

@@ -7,8 +7,10 @@ require('dotenv').config();
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'https://meditrack-02.onrender.com',
   process.env.CORS_ORIGIN
 ].filter(Boolean);

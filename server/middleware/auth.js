@@ -2,9 +2,17 @@ const jwt = require('jsonwebtoken');
 const SECRET = process.env.JWT_SECRET;
 
 function authAny(req, res, next) {
+  let token = '';
   const h = req.headers.authorization || '';
-  if (!h.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
-  const token = h.split(' ')[1];
+  if (h.startsWith('Bearer ')) {
+    token = h.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  console.log('Auth Check:', { hasHeader: !!h, hasQueryToken: !!req.query?.token, tokenFound: !!token });
+
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
   try {
     const payload = jwt.verify(token, SECRET);
     req.auth = payload; // { kind: 'staff'|'patient', id, role? }
